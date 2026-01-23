@@ -1,1201 +1,1343 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, font
-import platform
-import psutil
-from datetime import datetime
+# main.py
+import webview
 import sys
 import os
+import json
+from pathlib import Path
+import webbrowser
 
-class ModernRToolsBox:
+# API类 - 暴露给JavaScript的方法
+class Api:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Windows R-tools Box")
-        
-        # 设置窗口图标
-        self.set_window_icon()
-        
-        # 移除默认标题栏
-        self.root.overrideredirect(True)
-        
-        
-        # 初始化现代颜色方案
-        self.colors = {
-            "primary": "#4361ee",
-            "primary_dark": "#3a56d4",
-            "primary_light": "#eef2ff",
-            "secondary": "#7209b7",
-            "accent": "#f72585",
-            "success": "#4cc9f0",
-            "background": "#f8f9fa",
-            "card_bg": "#ffffff",
-            "sidebar_bg": "#ffffff",
-            "text_primary": "#2b2d42",
-            "text_secondary": "#8d99ae",
-            "text_light": "#ffffff",
-            "border": "#e9ecef",
-            "hover": "#f1f3f4",
-            "shadow": "rgba(0, 0, 0, 0.08)"
+        self.tools = []
+        self.settings = {
+            'check_updates': True,
+            'theme': 'light',
+            'auto_start': False
         }
-
-        
-        # 设置窗口为屏幕3/4大小并居中
-        self.setup_window_size()
-        
-        # 初始化现代字体
-        self.setup_fonts()
-        
-        # 创建自定义标题栏
-        self.create_modern_title_bar()
-        
-        # 创建主容器
-        self.create_main_container()
-        
-        # 创建侧边栏
-        self.create_modern_sidebar()
-        
-        # 创建主工作区
-        self.create_modern_workspace()
-        
-        # 创建状态栏
-        self.create_modern_status_bar()
-        
-        # 创建标题栏拖动功能
-        self.setup_drag_functionality()
-        
-        # 绑定关闭事件
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
-        # 初始化内存监控和时间更新
-        self.root.after(1000, self.update_memory_usage)
-        self.root.after(1000, self.update_time)
-        
-        # 绑定全局快捷键
-        self.bind_shortcuts()
-        
-    def set_window_icon(self):
-        """设置窗口图标"""
-        icon_path_32 = os.path.join("main", "R-tools 32x32.ico")
-        icon_path_128 = os.path.join("main", "R-tools 128x128.ico")
-        
-        if os.path.exists(icon_path_32):
-            self.root.iconbitmap(icon_path_32)
-        elif os.path.exists(icon_path_128):
-            self.root.iconbitmap(icon_path_128)
+        self.load_tools()
     
-    def setup_window_size(self):
-        """设置窗口大小为屏幕的3/4并居中"""
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        
-        self.window_width = int(screen_width * 0.75)
-        self.window_height = int(screen_height * 0.75)
-        
-        # 计算居中位置
-        x = (screen_width - self.window_width) // 2
-        y = (screen_height - self.window_height) // 2
-        
-        self.root.geometry(f"{self.window_width}x{self.window_height}+{x}+{y}")
-        self.root.configure(bg=self.colors["background"])
+    def load_tools(self):
+        """加载工具数据"""
+        self.tools = [
+            {"id": 1, "name": "系统优化器", "desc": "清理临时文件、优化启动项和系统设置", "category": "system", "icon": "fas fa-rocket", "status": "on", "favorite": True},
+            {"id": 2, "name": "隐私清理", "desc": "清除浏览器历史记录、Cookies和隐私数据", "category": "security", "icon": "fas fa-user-shield", "status": "on", "favorite": True},
+            {"id": 3, "name": "网络诊断", "desc": "检测网络连接问题，分析网络速度", "category": "network", "icon": "fas fa-wifi", "status": "on", "favorite": False},
+            {"id": 4, "name": "文件批量重命名", "desc": "批量重命名文件，支持多种规则", "category": "utilities", "icon": "fas fa-file-signature", "status": "on", "favorite": True},
+            {"id": 5, "name": "进程管理器", "desc": "查看和管理系统进程，结束异常进程", "category": "system", "icon": "fas fa-tasks", "status": "on", "favorite": False},
+            {"id": 6, "name": "密码生成器", "desc": "生成安全的随机密码", "category": "security", "icon": "fas fa-key", "status": "off", "favorite": True},
+            {"id": 7, "name": "端口扫描器", "desc": "扫描本地或远程主机的开放端口", "category": "network", "icon": "fas fa-search", "status": "on", "favorite": False},
+            {"id": 8, "name": "截图工具", "desc": "快速截图并编辑，支持多种格式", "category": "utilities", "icon": "fas fa-camera", "status": "on", "favorite": True},
+            {"id": 9, "name": "注册表清理", "desc": "安全清理无效的注册表项", "category": "system", "icon": "fas fa-database", "status": "off", "favorite": False},
+            {"id": 10, "name": "文件加密", "desc": "使用AES加密算法保护敏感文件", "category": "security", "icon": "fas fa-lock", "status": "on", "favorite": False},
+            {"id": 11, "name": "网络速度测试", "desc": "测试上传和下载速度", "category": "network", "icon": "fas fa-tachometer-alt", "status": "on", "favorite": True},
+            {"id": 12, "name": "单位转换器", "desc": "转换长度、重量、温度等单位", "category": "utilities", "icon": "fas fa-exchange-alt", "status": "on", "favorite": False}
+        ]
+        return self.tools
     
-    def setup_fonts(self):
-        """初始化现代字体设置"""
+    def get_tools(self):
+        """获取工具列表"""
+        return {
+            'success': True,
+            'tools': self.tools
+        }
+    
+    def get_tool_stats(self):
+        """获取工具统计信息"""
+        total = len(self.tools)
+        active = sum(1 for tool in self.tools if tool["status"] == "on")
+        favorite = sum(1 for tool in self.tools if tool["favorite"])
+        return {
+            'total': total,
+            'active': active,
+            'favorite': favorite
+        }
+    
+    def launch_tool(self, tool_id):
+        """启动工具"""
+        tool = next((t for t in self.tools if t["id"] == tool_id), None)
+        if tool:
+            # 在实际应用中，这里会启动对应的工具
+            print(f"正在启动工具: {tool['name']} (ID: {tool_id})")
+            return {
+                'success': True,
+                'message': f'工具 "{tool["name"]}" 启动成功'
+            }
+        return {
+            'success': False,
+            'message': '工具不存在'
+        }
+    
+    def toggle_favorite(self, tool_id, favorite):
+        """切换收藏状态"""
+        for tool in self.tools:
+            if tool["id"] == tool_id:
+                tool["favorite"] = favorite
+                return {
+                    'success': True,
+                    'message': f'工具已{"收藏" if favorite else "取消收藏"}'
+                }
+        return {
+            'success': False,
+            'message': '工具不存在'
+        }
+    
+    def update_setting(self, key, value):
+        """更新设置"""
+        if key in self.settings:
+            self.settings[key] = value
+            return {'success': True}
+        return {'success': False, 'message': '设置项不存在'}
+    
+    def save_settings(self):
+        """保存设置"""
+        # 在实际应用中，这里会保存到配置文件
+        print(f"保存设置: {json.dumps(self.settings, indent=2, ensure_ascii=False)}")
+        return {'success': True}
+    
+    def check_updates(self):
+        """检查更新"""
+        return {
+            'has_update': False,
+            'latest_version': '1.0.0',
+            'message': '当前已是最新版本'
+        }
+    
+    def open_repository(self):
+        """打开GitHub仓库"""
         try:
-            self.title_font = font.Font(family="Segoe UI", size=16, weight="bold")
-            self.heading_font = font.Font(family="Segoe UI", size=13, weight="600")
-            self.body_font = font.Font(family="Segoe UI", size=11)
-            self.small_font = font.Font(family="Segoe UI", size=10)
-            self.mono_font = font.Font(family="Cascadia Code", size=10)
-            self.icon_font = font.Font(family="Segoe UI Symbol", size=12)
+            webbrowser.open('https://github.com/Regulus-forteen/Windows-R-tools-box')
+            return {'success': True}
         except:
-            # 备用字体
-            self.title_font = font.Font(size=16, weight="bold")
-            self.heading_font = font.Font(size=13, weight="bold")
-            self.body_font = font.Font(size=11)
-            self.small_font = font.Font(size=10)
-            self.mono_font = font.Font(family="Courier", size=10)
-            self.icon_font = font.Font(size=12)
-    
-    def create_modern_title_bar(self):
-        """创建现代自定义标题栏"""
-        title_bar = tk.Frame(
-            self.root, 
-            bg=self.colors["primary"], 
-            height=48
-        )
-        title_bar.pack(fill="x")
-        title_bar.pack_propagate(False)
-        
-        # 标题栏拖动区域
-        self.title_bar = title_bar
-        
-        # Logo和标题
-        logo_frame = tk.Frame(title_bar, bg=self.colors["primary"])
-        logo_frame.pack(side="left", padx=(20, 12), pady=0)
-        
-        # 现代Logo
-        logo_canvas = tk.Canvas(
-            logo_frame, 
-            width=36, 
-            height=36, 
-            bg=self.colors["primary"], 
-            highlightthickness=0
-        )
-        logo_canvas.pack(side="left")
-        # 创建渐变圆形Logo
-        logo_canvas.create_oval(2, 2, 34, 34, fill="#ffffff", outline="")
-        logo_canvas.create_text(18, 18, text="R", font=("Segoe UI", 16, "bold"), fill=self.colors["primary"])
-        
-        # 应用名称
-        title_label = tk.Label(
-            title_bar, 
-            text="Windows R-tools Box", 
-            bg=self.colors["primary"], 
-            fg=self.colors["text_light"],
-            font=self.title_font
-        )
-        title_label.pack(side="left", pady=0)
-        
-        # 右侧窗口控制按钮
-        button_frame = tk.Frame(title_bar, bg=self.colors["primary"])
-        button_frame.pack(side="right", padx=0)
-        
-        # 最小化按钮
-        minimize_btn = self.create_modern_button(
-            button_frame,
-            text="─",
-            bg=self.colors["primary"],
-            hover_bg="#5a75f0",
-            command=self.minimize_window,
-            width=46
-        )
-        minimize_btn.pack(side="left", fill="y")
-        
-        # 关闭按钮
-        close_btn = self.create_modern_button(
-            button_frame,
-            text="×",
-            bg=self.colors["primary"],
-            hover_bg="#e81123",
-            command=self.on_closing,
-            width=46
-        )
-        close_btn.pack(side="left", fill="y")
-    
-    def create_modern_button(self, parent, text, bg, hover_bg, command, width=40, height=48):
-        """创建现代风格的按钮"""
-        btn = tk.Button(
-            parent,
-            text=text,
-            bg=bg,
-            fg=self.colors["text_light"],
-            font=("Segoe UI", 18),
-            bd=0,
-            width=3,
-            height=1,
-            activebackground=hover_bg,
-            activeforeground=self.colors["text_light"],
-            relief="flat",
-            cursor="hand2",
-            command=command
-        )
-        
-        # 绑定悬停效果
-        def on_enter(e):
-            btn.config(bg=hover_bg)
-        
-        def on_leave(e):
-            btn.config(bg=bg)
-        
-        btn.bind("<Enter>", on_enter)
-        btn.bind("<Leave>", on_leave)
-        
-        return btn
-    
-    def create_main_container(self):
-        """创建主容器"""
-        main_container = tk.Frame(self.root, bg=self.colors["background"])
-        main_container.pack(fill="both", expand=True)
-        
-        # 侧边栏和主工作区容器
-        content_frame = tk.Frame(main_container, bg=self.colors["background"])
-        content_frame.pack(fill="both", expand=True, padx=0, pady=0)
-        
-        self.content_frame = content_frame
-    
-    def create_modern_sidebar(self):
-        """创建现代侧边导航栏"""
-        sidebar = tk.Frame(
-            self.content_frame, 
-            width=260, 
-            bg=self.colors["sidebar_bg"],
-            relief="flat"
-        )
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
-        
-        # 顶部用户区域
-        user_frame = tk.Frame(sidebar, bg=self.colors["primary_light"], height=140)
-        user_frame.pack(fill="x", pady=(0, 15))
-        user_frame.pack_propagate(False)
-        
-        # 用户头像
-        avatar_frame = tk.Frame(user_frame, bg=self.colors["primary_light"])
-        avatar_frame.pack(pady=(25, 10))
-        
-        avatar_canvas = tk.Canvas(
-            avatar_frame,
-            width=70,
-            height=70,
-            bg=self.colors["primary_light"],
-            highlightthickness=0
-        )
-        avatar_canvas.pack()
-        avatar_canvas.create_oval(5, 5, 65, 65, fill=self.colors["primary"], outline="")
-        avatar_canvas.create_text(35, 35, text="R", font=("Segoe UI", 28, "bold"), fill="white")
-        
-        # 欢迎文本
-        welcome_label = tk.Label(
-            user_frame,
-            text="欢迎使用",
-            bg=self.colors["primary_light"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        welcome_label.pack()
-        
-        username_label = tk.Label(
-            user_frame,
-            text="R-tools Box",
-            bg=self.colors["primary_light"],
-            fg=self.colors["primary"],
-            font=self.heading_font
-        )
-        username_label.pack()
-        
-        # 搜索框
-        search_frame = tk.Frame(sidebar, bg=self.colors["sidebar_bg"])
-        search_frame.pack(fill="x", padx=20, pady=(0, 20))
-        
-        # 创建现代搜索框
-        search_container = tk.Frame(search_frame, bg=self.colors["border"], bd=0)
-        search_container.pack(fill="x")
-        
-        search_icon = tk.Label(
-            search_container,
-            text="🔍",
-            bg=self.colors["background"],
-            fg=self.colors["text_secondary"],
-            font=self.icon_font
-        )
-        search_icon.pack(side="left", padx=(12, 8), pady=10)
-        
-        search_var = tk.StringVar()
-        search_entry = tk.Entry(
-            search_container,
-            textvariable=search_var,
-            font=self.body_font,
-            bd=0,
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            insertbackground=self.colors["primary"],
-            relief="flat"
-        )
-        search_entry.pack(side="left", fill="x", expand=True, ipady=8)
-        search_entry.insert(0, "搜索工具...")
-        
-        # 导航菜单
-        nav_frame = tk.Frame(sidebar, bg=self.colors["sidebar_bg"])
-        nav_frame.pack(fill="both", expand=True, padx=0, pady=0)
-        
-        categories = [
-            ("🏠", "首页概览", self.show_home, True),
-            ("⚙️", "系统工具", self.show_system_tools, False),
-            ("📁", "文件管理", self.show_file_tools, False),
-            ("🌐", "网络工具", self.show_network_tools, False),
-            ("🔒", "安全工具", self.show_security_tools, False),
-            ("🎨", "个性化", self.show_settings, False),
-            ("❓", "帮助中心", self.show_help, False)
-        ]
-        
-        self.nav_buttons = []
-        for icon, text, command, is_active in categories:
-            nav_item = self.create_nav_item(nav_frame, icon, text, command, is_active)
-            nav_item.pack(fill="x", padx=20, pady=2)
-            self.nav_buttons.append(nav_item)
-        
-        # 底部信息区域
-        bottom_frame = tk.Frame(sidebar, bg=self.colors["sidebar_bg"], height=80)
-        bottom_frame.pack(side="bottom", fill="x", pady=(10, 0))
-        bottom_frame.pack_propagate(False)
-        
-        # 版本信息
-        version_frame = tk.Frame(bottom_frame, bg=self.colors["sidebar_bg"])
-        version_frame.pack(fill="x", padx=20, pady=(10, 5))
-        
-        version_label = tk.Label(
-            version_frame,
-            text="版本 v1.0.0",
-            bg=self.colors["sidebar_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        version_label.pack(side="left")
-        
-        # 底部按钮
-        button_frame = tk.Frame(bottom_frame, bg=self.colors["sidebar_bg"])
-        button_frame.pack(fill="x", padx=20, pady=5)
-        
-        # GitHub按钮
-        github_btn = self.create_icon_button(
-            button_frame,
-            "🐙",
-            self.colors["text_secondary"],
-            self.colors["primary"]
-        )
-        github_btn.pack(side="left", padx=(0, 10))
-        
-        # 赞助按钮
-        sponsor_btn = self.create_icon_button(
-            button_frame,
-            "❤️",
-            "#ff4081",
-            "#f50057"
-        )
-        sponsor_btn.pack(side="left")
-        
-        # 设置按钮
-        settings_btn = self.create_icon_button(
-            button_frame,
-            "⚙️",
-            self.colors["text_secondary"],
-            self.colors["primary"]
-        )
-        settings_btn.pack(side="right")
-    
-    def create_nav_item(self, parent, icon, text, command, is_active=False):
-        """创建现代导航项"""
-        nav_frame = tk.Frame(parent, bg=self.colors["sidebar_bg"])
-        
-        # 活动状态指示器
-        if is_active:
-            active_indicator = tk.Frame(nav_frame, bg=self.colors["primary"], width=4)
-            active_indicator.pack(side="left", fill="y")
-        else:
-            # 占位符保持对齐
-            tk.Frame(nav_frame, bg=self.colors["sidebar_bg"], width=4).pack(side="left", fill="y")
-        
-        btn = tk.Button(
-            nav_frame,
-            text=f"   {icon}  {text}",
-            anchor="w",
-            bg=self.colors["sidebar_bg"],
-            fg=self.colors["text_primary"] if not is_active else self.colors["primary"],
-            font=self.body_font,
-            bd=0,
-            padx=16,
-            pady=14,
-            activebackground=self.colors["hover"],
-            activeforeground=self.colors["primary"],
-            relief="flat",
-            cursor="hand2",
-            command=command
-        )
-        btn.pack(side="left", fill="x", expand=True)
-        
-        # 悬停效果
-        def on_enter(e):
-            if not is_active:
-                btn.config(bg=self.colors["hover"])
-                nav_frame.config(bg=self.colors["hover"])
-        
-        def on_leave(e):
-            if not is_active:
-                btn.config(bg=self.colors["sidebar_bg"])
-                nav_frame.config(bg=self.colors["sidebar_bg"])
-        
-        btn.bind("<Enter>", on_enter)
-        btn.bind("<Leave>", on_leave)
-        nav_frame.bind("<Enter>", on_enter)
-        nav_frame.bind("<Leave>", on_leave)
-        
-        return nav_frame
-    
-    def create_icon_button(self, parent, icon, bg, hover_bg):
-        """创建图标按钮"""
-        btn = tk.Button(
-            parent,
-            text=icon,
-            bg=bg,
-            fg="white",
-            font=self.icon_font,
-            bd=0,
-            width=2,
-            pady=4,
-            activebackground=hover_bg,
-            activeforeground="white",
-            relief="flat",
-            cursor="hand2"
-        )
-        
-        def on_enter(e):
-            btn.config(bg=hover_bg)
-        
-        def on_leave(e):
-            btn.config(bg=bg)
-        
-        btn.bind("<Enter>", on_enter)
-        btn.bind("<Leave>", on_leave)
-        
-        return btn
-    
-    def create_modern_workspace(self):
-        """创建现代主工作区"""
-        workspace = tk.Frame(
-            self.content_frame, 
-            bg=self.colors["background"],
-            relief="flat"
-        )
-        workspace.pack(side="right", fill="both", expand=True)
-        
-        # 创建欢迎页面
-        self.create_modern_welcome_page(workspace)
-        
-        self.workspace = workspace
-    
-    def create_modern_welcome_page(self, parent):
-        """创建现代欢迎页面"""
-        # 清除现有内容
-        for widget in parent.winfo_children():
-            widget.destroy()
-        
-        # 主内容容器
-        content_container = tk.Frame(parent, bg=self.colors["background"])
-        content_container.pack(fill="both", expand=True)
-        
-        # 添加滚动条
-        canvas = tk.Canvas(content_container, bg=self.colors["background"], highlightthickness=0)
-        scrollbar = ttk.Scrollbar(content_container, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg=self.colors["background"])
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # 页面内容
-        welcome_frame = tk.Frame(scrollable_frame, bg=self.colors["background"])
-        welcome_frame.pack(fill="both", expand=True, padx=30, pady=30)
-        
-        # 欢迎标题
-        header_frame = tk.Frame(welcome_frame, bg=self.colors["background"])
-        header_frame.pack(fill="x", pady=(0, 30))
-        
-        title_label = tk.Label(
-            header_frame,
-            text="欢迎回来 👋",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=("Segoe UI", 24, "bold")
-        )
-        title_label.pack(side="left")
-        
-        date_label = tk.Label(
-            header_frame,
-            text=datetime.now().strftime("%Y年%m月%d日"),
-            bg=self.colors["background"],
-            fg=self.colors["text_secondary"],
-            font=self.body_font
-        )
-        date_label.pack(side="right", pady=8)
-        
-        # 统计卡片行
-        stats_frame = tk.Frame(welcome_frame, bg=self.colors["background"])
-        stats_frame.pack(fill="x", pady=(0, 30))
-        
-        stats = [
-            ("📦", "12", "可用工具", self.colors["primary"]),
-            ("⚡", "4", "正在运行", self.colors["success"]),
-            ("⭐", "28", "收藏工具", self.colors["secondary"]),
-            ("🔄", "3", "最近更新", self.colors["accent"])
-        ]
-        
-        for i, (icon, value, label, color) in enumerate(stats):
-            stat_card = self.create_stat_card(stats_frame, icon, value, label, color)
-            if i < 3:
-                stat_card.pack(side="left", padx=(0, 15))
-            else:
-                stat_card.pack(side="left")
-        
-        # 快捷工具区域
-        tools_section = tk.Frame(welcome_frame, bg=self.colors["background"])
-        tools_section.pack(fill="x", pady=(0, 25))
-        
-        section_header = tk.Frame(tools_section, bg=self.colors["background"])
-        section_header.pack(fill="x", pady=(0, 20))
-        
-        section_title = tk.Label(
-            section_header,
-            text="常用工具",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=self.heading_font
-        )
-        section_title.pack(side="left")
-        
-        view_all_btn = tk.Button(
-            section_header,
-            text="查看全部 →",
-            bg=self.colors["background"],
-            fg=self.colors["primary"],
-            font=self.small_font,
-            bd=0,
-            cursor="hand2",
-            activebackground=self.colors["background"],
-            activeforeground=self.colors["primary_dark"],
-            relief="flat"
-        )
-        view_all_btn.pack(side="right")
-        
-        # 工具卡片网格
-        tools_grid = tk.Frame(tools_section, bg=self.colors["background"])
-        tools_grid.pack(fill="x")
-        
-        tools = [
-            ("🗑️", "磁盘清理", "释放磁盘空间，删除临时文件", self.colors["primary"]),
-            ("💻", "系统信息", "查看硬件和系统详细信息", self.colors["success"]),
-            ("📊", "性能监控", "实时监控系统资源使用", self.colors["secondary"]),
-            ("🔍", "文件搜索", "快速查找文件和文件夹", self.colors["accent"]),
-            ("🌐", "网络诊断", "检测网络连接和速度", self.colors["primary"]),
-            ("🔄", "系统优化", "优化系统性能和启动项", self.colors["success"])
-        ]
-        
-        for i in range(0, len(tools), 3):
-            row_frame = tk.Frame(tools_grid, bg=self.colors["background"])
-            row_frame.pack(fill="x", pady=(0, 15))
-            
-            for j in range(3):
-                if i + j < len(tools):
-                    icon, name, desc, color = tools[i + j]
-                    tool_card = self.create_tool_card(row_frame, icon, name, desc, color)
-                    tool_card.pack(side="left", padx=(0, 15))
-        
-        # 最近活动
-        activity_frame = tk.Frame(welcome_frame, bg=self.colors["background"])
-        activity_frame.pack(fill="x", pady=(0, 25))
-        
-        activity_title = tk.Label(
-            activity_frame,
-            text="最近活动",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=self.heading_font
-        )
-        activity_title.pack(anchor="w", pady=(0, 15))
-        
-        activities = [
-            ("刚刚", "启动了系统信息工具"),
-            ("10分钟前", "清理了2.3GB临时文件"),
-            ("1小时前", "优化了系统启动项"),
-            ("3小时前", "诊断了网络连接")
-        ]
-        
-        for time, action in activities:
-            activity_item = self.create_activity_item(activity_frame, time, action)
-            activity_item.pack(fill="x", pady=(0, 10))
-    
-    def create_stat_card(self, parent, icon, value, label, color):
-        """创建统计卡片"""
-        card = tk.Frame(
-            parent,
-            width=180,
-            height=120,
-            bg=self.colors["card_bg"],
-            relief="flat"
-        )
-        card.pack_propagate(False)
-        
-        # 添加阴影效果
-        card.config(highlightbackground=self.colors["border"], highlightthickness=1)
-        
-        content_frame = tk.Frame(card, bg=self.colors["card_bg"])
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # 图标
-        icon_label = tk.Label(
-            content_frame,
-            text=icon,
-            bg=self.colors["card_bg"],
-            font=("Segoe UI", 24)
-        )
-        icon_label.pack(anchor="w")
-        
-        # 数值
-        value_label = tk.Label(
-            content_frame,
-            text=value,
-            bg=self.colors["card_bg"],
-            fg=color,
-            font=("Segoe UI", 28, "bold")
-        )
-        value_label.pack(anchor="w", pady=(10, 5))
-        
-        # 标签
-        label_label = tk.Label(
-            content_frame,
-            text=label,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        label_label.pack(anchor="w")
-        
-        return card
-    
-    def create_tool_card(self, parent, icon, name, desc, color):
-        """创建现代工具卡片"""
-        card = tk.Frame(
-            parent,
-            width=200,
-            height=160,
-            bg=self.colors["card_bg"],
-            relief="flat",
-            cursor="hand2"
-        )
-        card.pack_propagate(False)
-        
-        # 添加阴影效果
-        card.config(highlightbackground=self.colors["border"], highlightthickness=1)
-        
-        content_frame = tk.Frame(card, bg=self.colors["card_bg"])
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # 图标区域
-        icon_frame = tk.Frame(content_frame, bg=color + "20", width=48, height=48)
-        icon_frame.pack(anchor="w")
-        icon_frame.pack_propagate(False)
-        
-        icon_label = tk.Label(
-            icon_frame,
-            text=icon,
-            bg=color + "20",
-            fg=color,
-            font=("Segoe UI", 20)
-        )
-        icon_label.pack(expand=True)
-        
-        # 工具名称
-        name_label = tk.Label(
-            content_frame,
-            text=name,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_primary"],
-            font=self.heading_font
-        )
-        name_label.pack(anchor="w", pady=(15, 5))
-        
-        # 工具描述
-        desc_label = tk.Label(
-            content_frame,
-            text=desc,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font,
-            wraplength=160,
-            justify="left"
-        )
-        desc_label.pack(anchor="w")
-        
-        # 悬停效果
-        def on_enter(e):
-            card.config(bg=self.colors["hover"])
-            content_frame.config(bg=self.colors["hover"])
-            name_label.config(bg=self.colors["hover"])
-            desc_label.config(bg=self.colors["hover"])
-            icon_frame.config(bg=color + "40")
-            icon_label.config(bg=color + "40")
-        
-        def on_leave(e):
-            card.config(bg=self.colors["card_bg"])
-            content_frame.config(bg=self.colors["card_bg"])
-            name_label.config(bg=self.colors["card_bg"])
-            desc_label.config(bg=self.colors["card_bg"])
-            icon_frame.config(bg=color + "20")
-            icon_label.config(bg=color + "20")
-        
-        card.bind("<Enter>", on_enter)
-        card.bind("<Leave>", on_leave)
-        content_frame.bind("<Enter>", on_enter)
-        content_frame.bind("<Leave>", on_leave)
-        
-        return card
-    
-    def create_activity_item(self, parent, time, action):
-        """创建活动项"""
-        item_frame = tk.Frame(parent, bg=self.colors["background"])
-        
-        # 时间点
-        time_dot = tk.Frame(item_frame, bg=self.colors["primary"], width=8, height=8)
-        time_dot.pack(side="left", padx=(0, 12))
-        time_dot.pack_propagate(False)
-        
-        # 内容
-        content_frame = tk.Frame(item_frame, bg=self.colors["background"])
-        content_frame.pack(side="left", fill="x", expand=True)
-        
-        action_label = tk.Label(
-            content_frame,
-            text=action,
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=self.body_font
-        )
-        action_label.pack(anchor="w")
-        
-        time_label = tk.Label(
-            content_frame,
-            text=time,
-            bg=self.colors["background"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        time_label.pack(anchor="w", pady=(2, 0))
-        
-        return item_frame
-    
-    def create_modern_status_bar(self):
-        """创建现代状态栏"""
-        status_bar = tk.Frame(
-            self.root, 
-            bg=self.colors["card_bg"], 
-            height=36
-        )
-        status_bar.pack(side="bottom", fill="x")
-        status_bar.pack_propagate(False)
-        
-        # 左侧状态信息
-        left_frame = tk.Frame(status_bar, bg=self.colors["card_bg"])
-        left_frame.pack(side="left", padx=20)
-        
-        status_label = tk.Label(
-            left_frame,
-            text="✓ 系统就绪",
-            bg=self.colors["card_bg"],
-            fg=self.colors["success"],
-            font=self.small_font
-        )
-        status_label.pack(side="left", padx=(0, 20))
-        
-        # 右侧状态信息
-        right_frame = tk.Frame(status_bar, bg=self.colors["card_bg"])
-        right_frame.pack(side="right", padx=20)
-        
-        # CPU和内存信息
-        sys_frame = tk.Frame(right_frame, bg=self.colors["card_bg"])
-        sys_frame.pack(side="left", padx=(0, 20))
-        
-        cpu_icon = tk.Label(
-            sys_frame,
-            text="💻",
-            bg=self.colors["card_bg"],
-            font=self.small_font
-        )
-        cpu_icon.pack(side="left", padx=(0, 5))
-        
-        cpu_label = tk.Label(
-            sys_frame,
-            text="CPU: 0%",
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        cpu_label.pack(side="left", padx=(0, 10))
-        self.cpu_label = cpu_label
-        
-        memory_icon = tk.Label(
-            sys_frame,
-            text="💾",
-            bg=self.colors["card_bg"],
-            font=self.small_font
-        )
-        memory_icon.pack(side="left", padx=(0, 5))
-        
-        self.memory_label = tk.Label(
-            sys_frame,
-            text="内存: 0%",
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        self.memory_label.pack(side="left")
-        
-        # 时间显示
-        self.time_label = tk.Label(
-            right_frame,
-            text=datetime.now().strftime("%H:%M:%S"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        self.time_label.pack(side="left")
-    
-    def setup_drag_functionality(self):
-        """设置窗口拖动功能"""
-        self._offset_x = 0
-        self._offset_y = 0
-        
-        self.title_bar.bind('<Button-1>', self.start_move)
-        self.title_bar.bind('<B1-Motion>', self.on_move)
-        
-        # 标题文字也可以拖动
-        for label in self.title_bar.winfo_children():
-            if isinstance(label, tk.Label):
-                label.bind('<Button-1>', self.start_move)
-                label.bind('<B1-Motion>', self.on_move)
-    
-    def bind_shortcuts(self):
-        """绑定全局快捷键"""
-        self.root.bind('<Control-f>', lambda e: self.focus_search())
-        self.root.bind('<Control-q>', lambda e: self.on_closing())
-        self.root.bind('<Escape>', lambda e: self.show_home())
-    
-    def focus_search(self):
-        """聚焦搜索框"""
-        pass
-    
-    def start_move(self, event):
-        """开始拖动窗口"""
-        self._offset_x = event.x
-        self._offset_y = event.y
-    
-    def on_move(self, event):
-        """处理窗口拖动"""
-        x = self.root.winfo_x() + event.x - self._offset_x
-        y = self.root.winfo_y() + event.y - self._offset_y
-        self.root.geometry(f"+{x}+{y}")
-    
-    def update_time(self):
-        """更新时间显示"""
-        if hasattr(self, 'time_label') and self.time_label:
-            current_time = datetime.now().strftime("%H:%M:%S")
-            self.time_label.config(text=current_time)
-        self.root.after(1000, self.update_time)
-    
-    def update_memory_usage(self):
-        """更新CPU和内存使用情况显示"""
-        try:
-            if hasattr(self, 'memory_label') and self.memory_label:
-                # 获取内存使用率
-                memory_percent = psutil.virtual_memory().percent
-                self.memory_label.config(text=f"内存: {memory_percent}%")
-                
-                # 获取CPU使用率
-                cpu_percent = psutil.cpu_percent(interval=0.1)
-                if hasattr(self, 'cpu_label') and self.cpu_label:
-                    self.cpu_label.config(text=f"CPU: {cpu_percent}%")
-        except Exception as e:
-            print(f"获取系统信息失败: {e}")
-        self.root.after(2000, self.update_memory_usage)
-    
-    def minimize_window(self):
-        """最小化窗口"""
-        self.root.iconify()
-    
-    def on_closing(self):
-        """处理窗口关闭"""
-        if messagebox.askokcancel("退出", "确定要退出 Windows R-tools Box 吗？"):
-            self.root.destroy()
-            sys.exit()
-    
-    # 侧边栏按钮对应的功能
-    def show_home(self):
-        """显示首页"""
-        self.create_modern_welcome_page(self.workspace)
-    
-    def show_system_tools(self):
-        """显示系统工具"""
-        self.show_modern_category_page("系统工具", "⚙️")
-    
-    def show_file_tools(self):
-        """显示文件管理工具"""
-        self.show_modern_category_page("文件管理", "📁")
-    
-    def show_network_tools(self):
-        """显示网络工具"""
-        self.show_modern_category_page("网络工具", "🌐")
-    
-    def show_security_tools(self):
-        """显示安全工具"""
-        self.show_modern_category_page("安全工具", "🔒")
-    
-    def show_settings(self):
-        """显示设置页面"""
-        self.show_modern_settings_page()
-    
-    def show_help(self):
-        """显示帮助页面"""
-        self.show_modern_help_page()
-    
-    def show_modern_category_page(self, category_name, icon):
-        """显示现代分类工具页面"""
-        for widget in self.workspace.winfo_children():
-            widget.destroy()
-        
-        # 创建页面容器
-        page_frame = tk.Frame(self.workspace, bg=self.colors["background"])
-        page_frame.pack(fill="both", expand=True, padx=30, pady=30)
-        
-        # 页面标题
-        header_frame = tk.Frame(page_frame, bg=self.colors["background"])
-        header_frame.pack(fill="x", pady=(0, 30))
-        
-        title_label = tk.Label(
-            header_frame,
-            text=f"{icon} {category_name}",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=("Segoe UI", 22, "bold")
-        )
-        title_label.pack(side="left")
-        
-        # 工具数量
-        count_label = tk.Label(
-            header_frame,
-            text="12个工具可用",
-            bg=self.colors["background"],
-            fg=self.colors["text_secondary"],
-            font=self.body_font
-        )
-        count_label.pack(side="right", pady=8)
-        
-        # 占位内容
-        placeholder_frame = tk.Frame(page_frame, bg=self.colors["background"])
-        placeholder_frame.pack(fill="both", expand=True)
-        
-        placeholder_icon = tk.Label(
-            placeholder_frame,
-            text="🚧",
-            bg=self.colors["background"],
-            font=("Segoe UI", 64)
-        )
-        placeholder_icon.pack(pady=(50, 20))
-        
-        placeholder_text = tk.Label(
-            placeholder_frame,
-            text="功能正在开发中...\n敬请期待",
-            bg=self.colors["background"],
-            fg=self.colors["text_secondary"],
-            font=self.heading_font
-        )
-        placeholder_text.pack()
-    
-    def show_modern_settings_page(self):
-        """显示现代设置页面"""
-        for widget in self.workspace.winfo_children():
-            widget.destroy()
-        
-        # 创建设置页面容器
-        settings_frame = tk.Frame(self.workspace, bg=self.colors["background"])
-        settings_frame.pack(fill="both", expand=True, padx=30, pady=30)
-        
-        # 页面标题
-        title_label = tk.Label(
-            settings_frame,
-            text="🎨 个性化设置",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=("Segoe UI", 22, "bold")
-        )
-        title_label.pack(anchor="w", pady=(0, 30))
-        
-        # 设置项卡片
-        settings_cards = [
-            ("🌙", "外观主题", "深色/浅色主题切换"),
-            ("🌍", "语言设置", "切换界面语言"),
-            ("🔔", "通知设置", "管理工具通知"),
-            ("⚡", "性能设置", "优化工具性能")
-        ]
-        
-        for icon, title, desc in settings_cards:
-            card = self.create_setting_card(settings_frame, icon, title, desc)
-            card.pack(fill="x", pady=(0, 15))
-    
-    def create_setting_card(self, parent, icon, title, desc):
-        """创建设置项卡片"""
-        card = tk.Frame(
-            parent,
-            bg=self.colors["card_bg"],
-            relief="flat"
-        )
-        card.config(highlightbackground=self.colors["border"], highlightthickness=1)
-        
-        # 图标
-        icon_label = tk.Label(
-            card,
-            text=icon,
-            bg=self.colors["card_bg"],
-            font=("Segoe UI", 20)
-        )
-        icon_label.pack(side="left", padx=20, pady=20)
-        
-        # 内容
-        content_frame = tk.Frame(card, bg=self.colors["card_bg"])
-        content_frame.pack(side="left", fill="x", expand=True, pady=20)
-        
-        title_label = tk.Label(
-            content_frame,
-            text=title,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_primary"],
-            font=self.heading_font
-        )
-        title_label.pack(anchor="w")
-        
-        desc_label = tk.Label(
-            content_frame,
-            text=desc,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        desc_label.pack(anchor="w", pady=(2, 0))
-        
-        # 开关/选择器
-        if "主题" in title:
-            var = tk.StringVar(value="浅色")
-            theme_combo = ttk.Combobox(
-                card,
-                textvariable=var,
-                values=["浅色", "深色", "自动"],
-                state="readonly",
-                width=10
-            )
-            theme_combo.pack(side="right", padx=20)
-        
-        return card
-    
-    def show_modern_help_page(self):
-        """显示现代帮助页面"""
-        for widget in self.workspace.winfo_children():
-            widget.destroy()
-        
-        # 创建帮助页面容器
-        help_frame = tk.Frame(self.workspace, bg=self.colors["background"])
-        help_frame.pack(fill="both", expand=True, padx=30, pady=30)
-        
-        # 页面标题
-        title_label = tk.Label(
-            help_frame,
-            text="❓ 帮助中心",
-            bg=self.colors["background"],
-            fg=self.colors["text_primary"],
-            font=("Segoe UI", 22, "bold")
-        )
-        title_label.pack(anchor="w", pady=(0, 30))
-        
-        # 帮助内容卡片
-        help_items = [
-            ("📚", "用户手册", "详细的使用说明和教程"),
-            ("🔄", "检查更新", "获取最新版本和功能"),
-            ("🐛", "报告问题", "反馈BUG或提出建议"),
-            ("💬", "社区支持", "加入用户社区交流")
-        ]
-        
-        for icon, title, desc in help_items:
-            card = self.create_help_card(help_frame, icon, title, desc)
-            card.pack(fill="x", pady=(0, 15))
-    
-    def create_help_card(self, parent, icon, title, desc):
-        """创建帮助卡片"""
-        card = tk.Frame(
-            parent,
-            bg=self.colors["card_bg"],
-            relief="flat",
-            cursor="hand2"
-        )
-        card.config(highlightbackground=self.colors["border"], highlightthickness=1)
-        
-        # 悬停效果
-        def on_enter(e):
-            card.config(bg=self.colors["hover"])
-            icon_label.config(bg=self.colors["hover"])
-            content_frame.config(bg=self.colors["hover"])
-            title_label.config(bg=self.colors["hover"])
-            desc_label.config(bg=self.colors["hover"])
-        
-        def on_leave(e):
-            card.config(bg=self.colors["card_bg"])
-            icon_label.config(bg=self.colors["card_bg"])
-            content_frame.config(bg=self.colors["card_bg"])
-            title_label.config(bg=self.colors["card_bg"])
-            desc_label.config(bg=self.colors["card_bg"])
-        
-        card.bind("<Enter>", on_enter)
-        card.bind("<Leave>", on_leave)
-        
-        # 图标
-        icon_label = tk.Label(
-            card,
-            text=icon,
-            bg=self.colors["card_bg"],
-            font=("Segoe UI", 20)
-        )
-        icon_label.pack(side="left", padx=20, pady=20)
-        icon_label.bind("<Enter>", on_enter)
-        icon_label.bind("<Leave>", on_leave)
-        
-        # 内容
-        content_frame = tk.Frame(card, bg=self.colors["card_bg"])
-        content_frame.pack(side="left", fill="x", expand=True, pady=20)
-        content_frame.bind("<Enter>", on_enter)
-        content_frame.bind("<Leave>", on_leave)
-        
-        title_label = tk.Label(
-            content_frame,
-            text=title,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_primary"],
-            font=self.heading_font
-        )
-        title_label.pack(anchor="w")
-        title_label.bind("<Enter>", on_enter)
-        title_label.bind("<Leave>", on_leave)
-        
-        desc_label = tk.Label(
-            content_frame,
-            text=desc,
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.small_font
-        )
-        desc_label.pack(anchor="w", pady=(2, 0))
-        desc_label.bind("<Enter>", on_enter)
-        desc_label.bind("<Leave>", on_leave)
-        
-        # 箭头图标
-        arrow_label = tk.Label(
-            card,
-            text="→",
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_secondary"],
-            font=self.heading_font
-        )
-        arrow_label.pack(side="right", padx=20)
-        arrow_label.bind("<Enter>", on_enter)
-        arrow_label.bind("<Leave>", on_leave)
-        
-        return card
-    
-    def run(self):
-        """运行主程序"""
-        self.root.mainloop()
+            return {'success': False, 'message': '无法打开浏览器'}
 
-if __name__ == "__main__":
-    # 创建并运行现代应用程序
-    app = ModernRToolsBox()
-    app.run()
+# HTML 内容
+def get_html_content():
+    return '''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows R-tools Box 🧰</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #9ca3af;
+            --border: #e5e7eb;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --sidebar-width: 260px;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            color: var(--dark);
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--dark) 0%, #111827 100%);
+            color: white;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        
+        .logo-container {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .logo i {
+            color: var(--secondary);
+            font-size: 1.8rem;
+        }
+        
+        .logo-text {
+            background: linear-gradient(90deg, #60a5fa, var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .tagline {
+            font-size: 0.8rem;
+            color: var(--gray);
+            margin-top: 5px;
+            margin-left: 42px;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 10px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            margin: 4px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #d1d5db;
+            text-decoration: none;
+        }
+        
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .nav-item.active {
+            background-color: rgba(37, 99, 235, 0.2);
+            color: white;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .nav-item span {
+            font-size: 0.95rem;
+        }
+        
+        .badge {
+            background-color: var(--secondary);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        
+        .footer-info {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+            color: var(--gray);
+            text-align: center;
+        }
+        
+        .footer-info a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        
+        /* 主内容区样式 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .top-bar {
+            background-color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            z-index: 5;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--dark);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box input {
+            padding: 10px 16px 10px 40px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            width: 250px;
+            font-size: 0.9rem;
+            background-color: #f9fafb;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background-color: #f8fafc;
+        }
+        
+        /* 工具卡片样式 */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+        
+        .tool-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .tool-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 16px;
+        }
+        
+        .tool-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .icon-system {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        
+        .icon-security {
+            background: linear-gradient(135deg, #10b981, #047857);
+        }
+        
+        .icon-network {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+        
+        .icon-utility {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .tool-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .tool-desc {
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .tool-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .tool-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+        }
+        
+        .status-on {
+            color: var(--secondary);
+        }
+        
+        .status-off {
+            color: #ef4444;
+        }
+        
+        .tool-actions button {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        
+        /* 仪表板样式 */
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .stat-info h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+        
+        .stat-info p {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        /* 页面切换效果 */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .logo-text, .tagline, .nav-item span, .badge {
+                display: none;
+            }
+            
+            .logo-container {
+                padding: 20px 10px;
+            }
+            
+            .logo {
+                justify-content: center;
+            }
+            
+            .footer-info {
+                font-size: 0.7rem;
+                padding: 10px;
+            }
+            
+            .search-box input {
+                width: 200px;
+            }
+            
+            .tools-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-box input {
+                width: 150px;
+            }
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .notification.success {
+            background-color: #10b981;
+        }
+        
+        .notification.error {
+            background-color: #ef4444;
+        }
+        
+        .notification.info {
+            background-color: #3b82f6;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        /* 加载动画 */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="logo-container">
+                <div class="logo">
+                    <i class="fas fa-toolbox"></i>
+                    <span class="logo-text">R-tools Box</span>
+                </div>
+                <div class="tagline">让开源的工具，赋予Windows更多可能</div>
+            </div>
+            
+            <div class="nav-menu">
+                <a href="#" class="nav-item active" onclick="switchPage('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>仪表板</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('tools')">
+                    <i class="fas fa-tools"></i>
+                    <span>所有工具</span>
+                    <span class="badge" id="tools-count">12</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('system')">
+                    <i class="fas fa-desktop"></i>
+                    <span>系统工具</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('security')">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>安全工具</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('network')">
+                    <i class="fas fa-network-wired"></i>
+                    <span>网络工具</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('utilities')">
+                    <i class="fas fa-cogs"></i>
+                    <span>实用工具</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('settings')">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>设置</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('about')">
+                    <i class="fas fa-info-circle"></i>
+                    <span>关于</span>
+                </a>
+            </div>
+            
+            <div class="footer-info">
+                <p>版本 1.0.0 | <a href="#" onclick="switchPage('license')">AGPL v3</a></p>
+                <p>© 2024 Regulus-forteen & 贡献者</p>
+            </div>
+        </div>
+        
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="page-title" id="page-title">仪表板</div>
+                
+                <div class="actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-tools" placeholder="搜索工具..." onkeyup="searchTools()">
+                    </div>
+                    
+                    <button class="btn btn-secondary" onclick="refreshTools()">
+                        <i class="fas fa-sync-alt"></i>
+                        刷新
+                    </button>
+                    
+                    <button class="btn btn-primary" onclick="checkForUpdates()">
+                        <i class="fas fa-download"></i>
+                        检查更新
+                    </button>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <!-- 仪表板页面 -->
+                <div id="dashboard" class="page active">
+                    <h2>欢迎使用 Windows R-tools Box</h2>
+                    <p class="tool-desc">一个为Windows用户打造的高效、纯净、可扩展的开源工具箱。</p>
+                    
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                                <i class="fas fa-tools" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="total-tools">12</h3>
+                                <p>可用工具</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #047857);">
+                                <i class="fas fa-check-circle" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="active-tools">8</h3>
+                                <p>运行中</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                                <i class="fas fa-star" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="favorite-tools">5</h3>
+                                <p>收藏工具</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                                <i class="fas fa-clock" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="last-update">今日</h3>
+                                <p>最近更新</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">快速开始</h3>
+                    <div class="tools-grid" id="quick-tools">
+                        <!-- 快速访问工具将通过JS动态加载 -->
+                    </div>
+                </div>
+                
+                <!-- 所有工具页面 -->
+                <div id="tools" class="page">
+                    <h2>所有工具</h2>
+                    <p class="tool-desc">工具箱中的所有可用工具，支持搜索和分类筛选。</p>
+                    
+                    <div class="tools-grid" id="all-tools">
+                        <!-- 所有工具将通过JS动态加载 -->
+                    </div>
+                </div>
+                
+                <!-- 系统工具页面 -->
+                <div id="system" class="page">
+                    <h2>系统工具</h2>
+                    <p class="tool-desc">优化、管理和维护Windows系统的工具集合。</p>
+                    
+                    <div class="tools-grid" id="system-tools">
+                        <!-- 系统工具将通过JS动态加载 -->
+                    </div>
+                </div>
+                
+                <!-- 关于页面 -->
+                <div id="about" class="page">
+                    <h2>关于 Windows R-tools Box</h2>
+                    
+                    <div class="tool-card" style="max-width: 800px; margin-top: 20px;">
+                        <div class="tool-header">
+                            <div class="tool-icon icon-system">
+                                <i class="fas fa-toolbox"></i>
+                            </div>
+                            <div>
+                                <div class="tool-title">开源工具箱</div>
+                                <div class="tool-status">
+                                    <i class="fas fa-circle status-on"></i>
+                                    <span>版本 1.0.0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-desc">
+                            <p><strong>Windows R-tools Box</strong> 是一个为Windows用户打造的高效、纯净、可扩展的开源工具箱。</p>
+                            <p>旨在聚合实用的系统工具，让<strong>新手用户开箱即用，高级用户自由定制</strong>。</p>
+                            
+                            <h4 style="margin-top: 20px;">为什么选择我们？</h4>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>🛡️ <strong>纯净透明</strong>：所有代码开源，无任何捆绑、后台或隐私收集。</li>
+                                <li>🔧 <strong>即开即用</strong>：无需复杂配置，下载即可获得强大的工具集合。</li>
+                                <li>🧩 <strong>模块化设计</strong>：每个工具独立，支持自由组合与扩展。</li>
+                                <li>⚙️ <strong>尊重自由</strong>：不仅提供工具，更赋予您查看、修改和重新分发的权利。</li>
+                            </ul>
+                            
+                            <h4 style="margin-top: 20px;">许可证</h4>
+                            <p>本仓库内的所有原创工具、代码及修改，均采用 <strong>GNU Affero 通用公共许可证 v3.0</strong> 开源。</p>
+                            <p>我们采用此许可证，是为了坚守一个简单的信念：<strong>开源的价值在于共享与回馈</strong>。</p>
+                            
+                            <h4 style="margin-top: 20px;">贡献</h4>
+                            <p>我们热烈欢迎您的贡献！无论是添加新工具、修复BUG还是改进文档。</p>
+                            <p>请参考项目仓库中的 <strong>CONTRIBUTING.md</strong> 文件了解如何参与贡献。</p>
+                            
+                            <p style="margin-top: 30px; text-align: center; font-style: italic;">
+                                <strong>让开源的工具，赋予Windows更多可能。</strong> ✨
+                            </p>
+                        </div>
+                        
+                        <div class="tool-footer">
+                            <div class="tool-status">
+                                <i class="fas fa-code-branch"></i>
+                                <span>GitHub: Regulus-forteen/Windows-R-tools-box</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="openRepository()">
+                                <i class="fab fa-github"></i>
+                                访问仓库
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 其他页面内容 -->
+                <div id="security" class="page">
+                    <h2>安全工具</h2>
+                    <p class="tool-desc">保护系统安全和隐私的工具集合。</p>
+                    <div class="tools-grid" id="security-tools"></div>
+                </div>
+                
+                <div id="network" class="page">
+                    <h2>网络工具</h2>
+                    <p class="tool-desc">网络诊断、优化和监控工具。</p>
+                    <div class="tools-grid" id="network-tools"></div>
+                </div>
+                
+                <div id="utilities" class="page">
+                    <h2>实用工具</h2>
+                    <p class="tool-desc">日常使用的小工具和实用程序。</p>
+                    <div class="tools-grid" id="utilities-tools"></div>
+                </div>
+                
+                <div id="settings" class="page">
+                    <h2>设置</h2>
+                    <p class="tool-desc">自定义工具箱的行为和外观。</p>
+                    
+                    <div class="tool-card" style="max-width: 700px;">
+                        <h3 style="margin-bottom: 15px;">常规设置</h3>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">启动时检查更新</label>
+                            <label class="tool-status">
+                                <input type="checkbox" id="check-updates" checked onchange="toggleSetting('check-updates')">
+                                <span style="margin-left: 8px;">自动检查新版本</span>
+                            </label>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">工具箱主题</label>
+                            <select id="theme-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); width: 200px;" onchange="changeTheme()">
+                                <option value="light">浅色主题</option>
+                                <option value="dark">深色主题</option>
+                                <option value="auto">跟随系统</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">工具默认行为</label>
+                            <label class="tool-status">
+                                <input type="checkbox" id="auto-start" onchange="toggleSetting('auto-start')">
+                                <span style="margin-left: 8px;">启动时自动运行收藏的工具</span>
+                            </label>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <button class="btn btn-primary" onclick="saveSettings()">
+                                <i class="fas fa-save"></i>
+                                保存设置
+                            </button>
+                            <button class="btn btn-secondary" style="margin-left: 10px;" onclick="resetSettings()">
+                                <i class="fas fa-undo"></i>
+                                恢复默认
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 许可证页面 -->
+                <div id="license" class="page">
+                    <h2>AGPL v3 许可证</h2>
+                    
+                    <div class="tool-card" style="max-width: 900px;">
+                        <h3>GNU Affero 通用公共许可证 v3.0</h3>
+                        
+                        <div class="tool-desc">
+                            <p><strong>本仓库内的所有原创工具、代码及修改，均采用 GNU Affero 通用公共许可证 v3.0 开源。</strong></p>
+                            
+                            <h4 style="margin-top: 20px;">许可证对我们的意义</h4>
+                            <p>我们采用此许可证，是为了坚守一个简单的信念：<strong>开源的价值在于共享与回馈</strong>。</p>
+                            
+                            <h4 style="margin-top: 20px;">对您意味着</h4>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>✅ <strong>自由使用</strong>：个人、商业、教育用途均可。</li>
+                                <li>✅ <strong>自由研究</strong>：可随意查看、学习所有实现。</li>
+                                <li>✅ <strong>自由修改</strong>：可根据需求自行定制工具。</li>
+                                <li>✅ <strong>自由分发</strong>：可以分享给任何人。</li>
+                                <li>⚠️ <strong>唯一条件</strong>：若您<strong>修改</strong>了代码并<strong>通过网络提供服务</strong>，则<strong>必须</strong>将修改后的完整源代码向您的用户开放。</li>
+                            </ul>
+                            
+                            <p style="margin-top: 20px; font-style: italic;">
+                                <strong>简单来说</strong>：我们欢迎任何人（包括商业公司）使用本项目，但如果您用它构建了在线服务并进行了修改，那么您有义务将这些改进开源。<strong>这确保了开发者和社区的贡献不会被私有化垄断。</strong>
+                            </p>
+                            
+                            <p style="margin-top: 30px;">
+                                <strong>完整许可证文本请查看 LICENSE 文件。</strong> 使用本项目即表示您同意遵守此许可证的条款。
+                            </p>
+                        </div>
+                        
+                        <div class="tool-footer">
+                            <button class="btn btn-secondary" onclick="switchPage('about')">
+                                <i class="fas fa-arrow-left"></i>
+                                返回关于
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 工具数据
+        let toolsData = [];
+        
+        // 页面切换函数
+        function switchPage(pageId) {
+            // 更新活动导航项
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 更新页面标题
+            const pageTitles = {
+                'dashboard': '仪表板',
+                'tools': '所有工具',
+                'system': '系统工具',
+                'security': '安全工具',
+                'network': '网络工具',
+                'utilities': '实用工具',
+                'settings': '设置',
+                'about': '关于',
+                'license': '许可证'
+            };
+            document.getElementById('page-title').textContent = pageTitles[pageId] || 'R-tools Box';
+            
+            // 切换页面内容
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+            
+            // 如果切换到工具页面，加载工具
+            if (['tools', 'system', 'security', 'network', 'utilities', 'dashboard'].includes(pageId)) {
+                loadToolsForPage(pageId);
+            }
+            
+            return false;
+        }
+        
+        // 加载工具到页面
+        function loadToolsForPage(pageId) {
+            let containerId, filteredTools;
+            
+            switch(pageId) {
+                case 'tools':
+                    containerId = 'all-tools';
+                    filteredTools = toolsData;
+                    break;
+                case 'system':
+                    containerId = 'system-tools';
+                    filteredTools = toolsData.filter(tool => tool.category === 'system');
+                    break;
+                case 'security':
+                    containerId = 'security-tools';
+                    filteredTools = toolsData.filter(tool => tool.category === 'security');
+                    break;
+                case 'network':
+                    containerId = 'network-tools';
+                    filteredTools = toolsData.filter(tool => tool.category === 'network');
+                    break;
+                case 'utilities':
+                    containerId = 'utilities-tools';
+                    filteredTools = toolsData.filter(tool => tool.category === 'utilities');
+                    break;
+                case 'dashboard':
+                    containerId = 'quick-tools';
+                    filteredTools = toolsData.filter(tool => tool.favorite).slice(0, 4);
+                    break;
+            }
+            
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            if (filteredTools.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 40px;">暂无工具</p>';
+                return;
+            }
+            
+            filteredTools.forEach(tool => {
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-card';
+                toolCard.innerHTML = `
+                    <div class="tool-header">
+                        <div class="tool-icon icon-${tool.category}">
+                            <i class="${tool.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="tool-title">${tool.name}</div>
+                            <div class="tool-status">
+                                <i class="fas fa-circle status-${tool.status}"></i>
+                                <span>${tool.status === 'on' ? '可用' : '维护中'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tool-desc">${tool.desc}</div>
+                    <div class="tool-footer">
+                        <div class="tool-status">
+                            <i class="fas fa-heart" style="color: ${tool.favorite ? '#ef4444' : '#9ca3af'}; cursor: pointer;" 
+                               onclick="toggleFavorite(${tool.id})" title="${tool.favorite ? '取消收藏' : '收藏'}"></i>
+                            <span style="margin-left: 5px;">${tool.category === 'system' ? '系统' : 
+                                                           tool.category === 'security' ? '安全' : 
+                                                           tool.category === 'network' ? '网络' : '实用'}</span>
+                        </div>
+                        <button class="btn ${tool.status === 'on' ? 'btn-primary' : 'btn-secondary'}" 
+                                onclick="launchTool(${tool.id})" ${tool.status === 'off' ? 'disabled' : ''}>
+                            <i class="fas fa-play"></i>
+                            ${tool.status === 'on' ? '启动' : '暂不可用'}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(toolCard);
+            });
+            
+            // 更新统计信息
+            if (pageId === 'dashboard') {
+                updateStats();
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('total-tools').textContent = toolsData.length;
+            document.getElementById('active-tools').textContent = toolsData.filter(t => t.status === 'on').length;
+            document.getElementById('favorite-tools').textContent = toolsData.filter(t => t.favorite).length;
+            document.getElementById('tools-count').textContent = toolsData.length;
+        }
+        
+        // 搜索工具
+        function searchTools() {
+            const searchTerm = document.getElementById('search-tools').value.toLowerCase();
+            
+            // 在活动页面中搜索
+            const activePage = document.querySelector('.page.active').id;
+            let containerId;
+            
+            switch(activePage) {
+                case 'tools': containerId = 'all-tools'; break;
+                case 'system': containerId = 'system-tools'; break;
+                case 'security': containerId = 'security-tools'; break;
+                case 'network': containerId = 'network-tools'; break;
+                case 'utilities': containerId = 'utilities-tools'; break;
+                default: return;
+            }
+            
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const toolCards = container.querySelectorAll('.tool-card');
+            
+            toolCards.forEach(card => {
+                const title = card.querySelector('.tool-title').textContent.toLowerCase();
+                const desc = card.querySelector('.tool-desc').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || desc.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        // 启动工具
+        function launchTool(toolId) {
+            window.pywebview.api.launch_tool(toolId).then(response => {
+                if (response.success) {
+                    showNotification(response.message || `工具启动成功`, 'success');
+                } else {
+                    showNotification(response.message || `启动失败`, 'error');
+                }
+            }).catch(error => {
+                showNotification(`启动失败: ${error}`, 'error');
+            });
+        }
+        
+        // 切换收藏状态
+        function toggleFavorite(toolId) {
+            const tool = toolsData.find(t => t.id === toolId);
+            if (tool) {
+                const newFavorite = !tool.favorite;
+                window.pywebview.api.toggle_favorite(toolId, newFavorite).then(response => {
+                    if (response.success) {
+                        tool.favorite = newFavorite;
+                        
+                        // 重新加载当前页面的工具
+                        const activePage = document.querySelector('.page.active').id;
+                        if (activePage && activePage !== 'settings' && activePage !== 'about' && activePage !== 'license') {
+                            loadToolsForPage(activePage);
+                        }
+                        
+                        updateStats();
+                        showNotification(response.message || `已${newFavorite ? '收藏' : '取消收藏'}`, 'info');
+                    }
+                });
+            }
+        }
+        
+        // 刷新工具
+        function refreshTools() {
+            showNotification('正在刷新工具列表...', 'info');
+            
+            window.pywebview.api.get_tools().then(response => {
+                if (response.success) {
+                    toolsData = response.tools;
+                    updateStats();
+                    
+                    const activePage = document.querySelector('.page.active').id;
+                    if (activePage && activePage !== 'settings' && activePage !== 'about' && activePage !== 'license') {
+                        loadToolsForPage(activePage);
+                    }
+                    
+                    showNotification('工具列表已刷新', 'success');
+                }
+            }).catch(error => {
+                showNotification('刷新失败', 'error');
+            });
+        }
+        
+        // 检查更新
+        function checkForUpdates() {
+            showNotification('正在检查更新...', 'info');
+            
+            window.pywebview.api.check_updates().then(response => {
+                if (response.has_update) {
+                    showNotification(`发现新版本: ${response.latest_version}`, 'info');
+                    if (confirm(`发现新版本 ${response.latest_version}，是否前往下载？`)) {
+                        window.pywebview.api.open_repository();
+                    }
+                } else {
+                    showNotification(response.message || '当前已是最新版本', 'info');
+                }
+            }).catch(error => {
+                showNotification('检查更新失败', 'error');
+            });
+        }
+        
+        // 打开仓库
+        function openRepository() {
+            window.pywebview.api.open_repository().then(response => {
+                if (!response.success) {
+                    showNotification(response.message || '无法打开仓库', 'error');
+                }
+            });
+        }
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 移除现有的通知
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => existing.remove(), 300);
+            }
+            
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // 3秒后移除通知
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // 设置相关函数
+        function toggleSetting(settingId) {
+            const value = document.getElementById(settingId).checked;
+            window.pywebview.api.update_setting(settingId, value);
+        }
+        
+        function changeTheme() {
+            const theme = document.getElementById('theme-select').value;
+            window.pywebview.api.update_setting('theme', theme);
+        }
+        
+        function saveSettings() {
+            window.pywebview.api.save_settings().then(response => {
+                if (response.success) {
+                    showNotification('设置已保存', 'success');
+                }
+            });
+        }
+        
+        function resetSettings() {
+            document.getElementById('check-updates').checked = true;
+            document.getElementById('theme-select').value = 'light';
+            document.getElementById('auto-start').checked = false;
+            showNotification('设置已恢复为默认值', 'info');
+        }
+        
+        // 初始化函数
+        function initApp() {
+            // 加载工具数据
+            window.pywebview.api.get_tools().then(response => {
+                if (response.success) {
+                    toolsData = response.tools;
+                    updateStats();
+                    loadToolsForPage('dashboard');
+                }
+            }).catch(error => {
+                console.error('加载工具失败:', error);
+                // 使用默认数据
+                toolsData = [
+                    {"id": 1, "name": "系统优化器", "desc": "清理临时文件、优化启动项和系统设置", "category": "system", "icon": "fas fa-rocket", "status": "on", "favorite": true},
+                    {"id": 2, "name": "隐私清理", "desc": "清除浏览器历史记录、Cookies和隐私数据", "category": "security", "icon": "fas fa-user-shield", "status": "on", "favorite": true},
+                    {"id": 3, "name": "网络诊断", "desc": "检测网络连接问题，分析网络速度", "category": "network", "icon": "fas fa-wifi", "status": "on", "favorite": false},
+                    {"id": 4, "name": "文件批量重命名", "desc": "批量重命名文件，支持多种规则", "category": "utilities", "icon": "fas fa-file-signature", "status": "on", "favorite": true}
+                ];
+                updateStats();
+                loadToolsForPage('dashboard');
+            });
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 等待pywebview API加载完成
+            const checkApi = setInterval(() => {
+                if (window.pywebview && window.pywebview.api) {
+                    clearInterval(checkApi);
+                    initApp();
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>'''
+
+def main():
+    # 初始化API
+    api = Api()
+    
+    # 打印启动信息
+    print("=" * 60)
+    print("正在启动 Windows R-tools Box...")
+    print("版本 1.0.0 | © 2024 Regulus-forteen & 贡献者")
+    print("许可证: AGPL v3")
+    print("=" * 60)
+    
+    # 检查管理员权限
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+            if not is_admin:
+                print("⚠️  注意：某些系统工具可能需要管理员权限。")
+                print("建议以管理员身份运行以获得完整功能。")
+        except:
+            pass
+    
+    print("🎯 功能特色:")
+    print("  • 🛡️  纯净透明 - 所有代码开源，无捆绑、无后台")
+    print("  • 🔧  即开即用 - 无需复杂配置，下载即用")
+    print("  • 🧩  模块化设计 - 工具独立，自由组合扩展")
+    print("  • ⚙️  尊重自由 - 查看、修改、重新分发")
+    print("-" * 60)
+    print("🚀 正在加载主界面...")
+    
+    # 创建窗口
+    window = webview.create_window(
+        'Windows R-tools Box 🧰',
+        html=get_html_content(),
+        width=1200,
+        height=800,
+        min_size=(800, 600),
+        resizable=True,
+        text_select=True,
+        easy_drag=True,
+        js_api=api  # 将API实例传递给窗口
+    )
+    
+    # 启动应用
+    try:
+        webview.start(debug=False)
+        print("👋 程序已退出")
+    except KeyboardInterrupt:
+        print("\n👋 程序已退出")
+    except Exception as e:
+        print(f"❌ 启动失败: {e}")
+        print("💡 请确保已正确安装依赖:")
+        print("   pip install pywebview")
+
+if __name__ == '__main__':
+    # 检查依赖
+    try:
+        import webview
+    except ImportError:
+        print("❌ 未找到 pywebview 库")
+        print("💡 请安装依赖: pip install pywebview")
+        sys.exit(1)
+    
+    # 运行主函数
+    main()
