@@ -1,0 +1,13 @@
+{
+  "id": "network_speed_test",
+  "name": "网络速度测试",
+  "description": "测试网络上传和下载速度，诊断网络问题",
+  "executable": "speed_test.exe",
+  "version": "1.3.0",
+  "author": "R-tools Team",
+  "icon": "fas fa-tachometer-alt",
+  "status": "on",
+  "favorite": true,
+  "category": "network",
+  "requires_admin": false
+}

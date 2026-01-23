@@ -1,0 +1,13 @@
+{
+  "id": "file_encryptor",
+  "name": "文件加密器",
+  "description": "使用AES-256加密算法保护您的文件安全",
+  "executable": "encryptor.exe",
+  "version": "2.0.0",
+  "author": "R-tools Team",
+  "icon": "fas fa-lock",
+  "status": "on",
+  "favorite": true,
+  "category": "security",
+  "requires_admin": false
+}

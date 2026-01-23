@@ -1,0 +1,39 @@
+{
+  "theme": "light",
+  "default_search": "百度",
+  "show_favorites": true,
+  "show_tools": true,
+  "check_updates": true,
+  "window_position": null,
+  "window_size": [
+    1200,
+    800
+  ],
+  "recent_tools": [],
+  "favorite_sites": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com",
+      "icon": "fab fa-github",
+      "category": "开发"
+    },
+    {
+      "name": "知乎",
+      "url": "https://www.zhihu.com",
+      "icon": "fas fa-question-circle",
+      "category": "学习"
+    },
+    {
+      "name": "B站",
+      "url": "https://www.bilibili.com",
+      "icon": "fas fa-play-circle",
+      "category": "娱乐"
+    },
+    {
+      "name": "淘宝",
+      "url": "https://www.taobao.com",
+      "icon": "fas fa-shopping-cart",
+      "category": "购物"
+    }
+  ]
+}

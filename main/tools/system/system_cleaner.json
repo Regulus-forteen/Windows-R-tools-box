@@ -1,0 +1,13 @@
+{
+  "id": "system_cleaner",
+  "name": "系统清理大师",
+  "description": "清理系统垃圾文件和注册表，优化系统性能",
+  "executable": "cleaner.exe",
+  "version": "1.0.0",
+  "author": "R-tools Team",
+  "icon": "fas fa-broom",
+  "status": "on",
+  "favorite": true,
+  "category": "system",
+  "requires_admin": true
+}

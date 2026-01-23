@@ -1,78 +1,95 @@
-# main.py
+# main.py - 主程序入口（最小化修改）
 import webview
 import sys
-import os
 import json
+import os
 from pathlib import Path
-import webbrowser
 
-# API类 - 暴露给JavaScript的方法
+# 导入配置和工具
+from config import config
+from utils import get_system_info, format_system_info_for_display, scan_tools, open_url_in_browser, launch_tool
+
 class Api:
     def __init__(self):
         self.tools = []
-        self.settings = {
-            'check_updates': True,
-            'theme': 'light',
-            'auto_start': False
-        }
-        self.load_tools()
+        self.favorites = []
+        self.load_data()
     
-    def load_tools(self):
-        """加载工具数据"""
-        self.tools = [
-            {"id": 1, "name": "系统优化器", "desc": "清理临时文件、优化启动项和系统设置", "category": "system", "icon": "fas fa-rocket", "status": "on", "favorite": True},
-            {"id": 2, "name": "隐私清理", "desc": "清除浏览器历史记录、Cookies和隐私数据", "category": "security", "icon": "fas fa-user-shield", "status": "on", "favorite": True},
-            {"id": 3, "name": "网络诊断", "desc": "检测网络连接问题，分析网络速度", "category": "network", "icon": "fas fa-wifi", "status": "on", "favorite": False},
-            {"id": 4, "name": "文件批量重命名", "desc": "批量重命名文件，支持多种规则", "category": "utilities", "icon": "fas fa-file-signature", "status": "on", "favorite": True},
-            {"id": 5, "name": "进程管理器", "desc": "查看和管理系统进程，结束异常进程", "category": "system", "icon": "fas fa-tasks", "status": "on", "favorite": False},
-            {"id": 6, "name": "密码生成器", "desc": "生成安全的随机密码", "category": "security", "icon": "fas fa-key", "status": "off", "favorite": True},
-            {"id": 7, "name": "端口扫描器", "desc": "扫描本地或远程主机的开放端口", "category": "network", "icon": "fas fa-search", "status": "on", "favorite": False},
-            {"id": 8, "name": "截图工具", "desc": "快速截图并编辑，支持多种格式", "category": "utilities", "icon": "fas fa-camera", "status": "on", "favorite": True},
-            {"id": 9, "name": "注册表清理", "desc": "安全清理无效的注册表项", "category": "system", "icon": "fas fa-database", "status": "off", "favorite": False},
-            {"id": 10, "name": "文件加密", "desc": "使用AES加密算法保护敏感文件", "category": "security", "icon": "fas fa-lock", "status": "on", "favorite": False},
-            {"id": 11, "name": "网络速度测试", "desc": "测试上传和下载速度", "category": "network", "icon": "fas fa-tachometer-alt", "status": "on", "favorite": True},
-            {"id": 12, "name": "单位转换器", "desc": "转换长度、重量、温度等单位", "category": "utilities", "icon": "fas fa-exchange-alt", "status": "on", "favorite": False}
-        ]
-        return self.tools
+    def load_data(self):
+        """加载数据"""
+        self.tools = scan_tools(config.tools_dir)
+        # 加载收藏的工具
+        self.favorites = [tool for tool in self.tools if tool.get('favorite', False)]
+    
+    def get_system_info(self):
+        """获取系统信息"""
+        info = get_system_info()
+        formatted = format_system_info_for_display(info)
+        return {
+            'success': True,
+            'info': formatted
+        }
     
     def get_tools(self):
         """获取工具列表"""
+        self.load_data()
         return {
             'success': True,
-            'tools': self.tools
+            'tools': self.tools,
+            'favorites': self.favorites
         }
     
-    def get_tool_stats(self):
-        """获取工具统计信息"""
-        total = len(self.tools)
-        active = sum(1 for tool in self.tools if tool["status"] == "on")
-        favorite = sum(1 for tool in self.tools if tool["favorite"])
+    def get_search_engines(self):
+        """获取搜索引擎"""
         return {
-            'total': total,
-            'active': active,
-            'favorite': favorite
+            'success': True,
+            'engines': config.search_engines,
+            'default': config.settings.get('default_search', '百度')
+        }
+    
+    def get_favorite_sites(self):
+        """获取收藏网站"""
+        return {
+            'success': True,
+            'sites': config.favorite_sites
+        }
+    
+    def search(self, query, engine='百度'):
+        """执行搜索"""
+        if engine in config.search_engines:
+            url = config.search_engines[engine]['url'].format(query=query)
+            success = open_url_in_browser(url)
+            return {
+                'success': success,
+                'message': f'使用 {engine} 搜索: {query}'
+            }
+        return {
+            'success': False,
+            'message': '搜索引擎不存在'
+        }
+    
+    def open_site(self, url):
+        """打开网站"""
+        success = open_url_in_browser(url)
+        return {
+            'success': success,
+            'message': f'打开网站: {url}'
         }
     
     def launch_tool(self, tool_id):
         """启动工具"""
-        tool = next((t for t in self.tools if t["id"] == tool_id), None)
-        if tool:
-            # 在实际应用中，这里会启动对应的工具
-            print(f"正在启动工具: {tool['name']} (ID: {tool_id})")
-            return {
-                'success': True,
-                'message': f'工具 "{tool["name"]}" 启动成功'
-            }
+        success = launch_tool(tool_id)
         return {
-            'success': False,
-            'message': '工具不存在'
+            'success': success,
+            'message': f'启动工具: {tool_id}'
         }
     
     def toggle_favorite(self, tool_id, favorite):
         """切换收藏状态"""
         for tool in self.tools:
-            if tool["id"] == tool_id:
-                tool["favorite"] = favorite
+            if tool['id'] == tool_id:
+                tool['favorite'] = favorite
+                self.load_data()  # 重新加载数据
                 return {
                     'success': True,
                     'message': f'工具已{"收藏" if favorite else "取消收藏"}'
@@ -82,38 +99,54 @@ class Api:
             'message': '工具不存在'
         }
     
-    def update_setting(self, key, value):
-        """更新设置"""
-        if key in self.settings:
-            self.settings[key] = value
-            return {'success': True}
-        return {'success': False, 'message': '设置项不存在'}
-    
-    def save_settings(self):
-        """保存设置"""
-        # 在实际应用中，这里会保存到配置文件
-        print(f"保存设置: {json.dumps(self.settings, indent=2, ensure_ascii=False)}")
-        return {'success': True}
-    
-    def check_updates(self):
-        """检查更新"""
+    def get_settings(self):
+        """获取设置"""
         return {
-            'has_update': False,
-            'latest_version': '1.0.0',
-            'message': '当前已是最新版本'
+            'success': True,
+            'settings': config.settings
         }
     
-    def open_repository(self):
-        """打开GitHub仓库"""
+    def save_settings(self, settings):
+        """保存设置"""
+        config.settings.update(settings)
+        success = config.save_config()
+        return {
+            'success': success,
+            'message': '设置已保存' if success else '保存失败'
+        }
+    
+    # 窗口控制方法
+    def minimize(self):
+        """最小化窗口"""
         try:
-            webbrowser.open('https://github.com/Regulus-forteen/Windows-R-tools-box')
+            webview.windows[0].minimize()
             return {'success': True}
         except:
-            return {'success': False, 'message': '无法打开浏览器'}
+            return {'success': False}
+    
+    def maximize(self):
+        """最大化/还原窗口"""
+        try:
+            window = webview.windows[0]
+            if window.maximized:
+                window.restore()
+            else:
+                window.maximize()
+            return {'success': True}
+        except:
+            return {'success': False}
+    
+    def close(self):
+        """关闭窗口"""
+        try:
+            webview.windows[0].destroy()
+            return {'success': True}
+        except:
+            return {'success': False}
 
-# HTML 内容
-def get_html_content():
-    return '''<!DOCTYPE html>
+# HTML内容 - 基于原始设计的最小化修改
+HTML_CONTENT = '''
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -129,14 +162,15 @@ def get_html_content():
         }
         
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary: #10b981;
+            --primary: #002FA7;        /* 克莱因蓝 */
+            --primary-dark: #001F6E;
+            --primary-light: #4A6FC1;
+            --secondary: #FF6B35;
             --dark: #1f2937;
             --light: #f9fafb;
             --gray: #9ca3af;
             --border: #e5e7eb;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --card-shadow: 0 4px 6px -1px rgba(0, 47, 167, 0.1), 0 2px 4px -1px rgba(0, 47, 167, 0.06);
             --sidebar-width: 260px;
         }
         
@@ -151,16 +185,80 @@ def get_html_content():
             height: 100vh;
         }
         
+        /* 自定义标题栏 */
+        .title-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            z-index: 1000;
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+        
+        .title-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .app-logo i {
+            color: white;
+        }
+        
+        .window-controls {
+            display: flex;
+            -webkit-app-region: no-drag;
+        }
+        
+        .window-btn {
+            width: 46px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+        
+        .window-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .window-btn.close:hover {
+            background: #ff4757;
+        }
+        
         /* 侧边栏样式 */
         .sidebar {
             width: var(--sidebar-width);
-            background: linear-gradient(180deg, var(--dark) 0%, #111827 100%);
+            background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary) 100%);
             color: white;
-            padding: 20px 0;
+            padding: 40px 0 20px;
             display: flex;
             flex-direction: column;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 0 10px rgba(0, 47, 167, 0.1);
             z-index: 10;
+            margin-top: 32px;
         }
         
         .logo-container {
@@ -173,24 +271,21 @@ def get_html_content():
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
         }
         
         .logo i {
             color: var(--secondary);
-            font-size: 1.8rem;
+            font-size: 1.5rem;
         }
         
         .logo-text {
-            background: linear-gradient(90deg, #60a5fa, var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: white;
         }
         
         .tagline {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--gray);
             margin-top: 5px;
             margin-left: 42px;
@@ -206,7 +301,7 @@ def get_html_content():
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 14px 16px;
+            padding: 12px 16px;
             margin: 4px 0;
             border-radius: 8px;
             cursor: pointer;
@@ -221,9 +316,9 @@ def get_html_content():
         }
         
         .nav-item.active {
-            background-color: rgba(37, 99, 235, 0.2);
+            background-color: rgba(255, 255, 255, 0.15);
             color: white;
-            border-left: 3px solid var(--primary);
+            border-left: 3px solid var(--secondary);
         }
         
         .nav-item i {
@@ -232,7 +327,7 @@ def get_html_content():
         }
         
         .nav-item span {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         
         .badge {
@@ -245,15 +340,15 @@ def get_html_content():
         }
         
         .footer-info {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--gray);
             text-align: center;
         }
         
         .footer-info a {
-            color: #60a5fa;
+            color: #90caf9;
             text-decoration: none;
         }
         
@@ -263,27 +358,28 @@ def get_html_content():
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            margin-top: 32px;
         }
         
         .top-bar {
             background-color: white;
-            padding: 18px 30px;
+            padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 3px rgba(0, 47, 167, 0.05);
             z-index: 5;
         }
         
         .page-title {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 600;
-            color: var(--dark);
+            color: var(--primary-dark);
         }
         
         .actions {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
         }
         
@@ -341,38 +437,121 @@ def get_html_content():
         
         .content-area {
             flex: 1;
-            padding: 30px;
+            padding: 25px;
             overflow-y: auto;
             background-color: #f8fafc;
+        }
+        
+        /* 搜索区域样式 */
+        .search-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+        
+        .search-engine-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .engine-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--dark);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .engine-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow);
+        }
+        
+        .engine-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+        
+        .search-container {
+            position: relative;
+        }
+        
+        .search-input-large {
+            width: 100%;
+            padding: 15px 60px 15px 25px;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            font-size: 16px;
+            background: white;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s;
+        }
+        
+        .search-input-large:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .search-btn-large {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .search-btn-large:hover {
+            background: var(--primary-dark);
         }
         
         /* 工具卡片样式 */
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
+            gap: 20px;
             margin-top: 20px;
         }
         
         .tool-card {
             background-color: white;
             border-radius: 12px;
-            padding: 24px;
+            padding: 20px;
             box-shadow: var(--card-shadow);
             transition: transform 0.2s, box-shadow 0.2s;
             border: 1px solid var(--border);
+            cursor: pointer;
         }
         
         .tool-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 47, 167, 0.1);
         }
         
         .tool-header {
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         
         .tool-icon {
@@ -387,7 +566,7 @@ def get_html_content():
         }
         
         .icon-system {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
         }
         
         .icon-security {
@@ -403,7 +582,7 @@ def get_html_content():
         }
         
         .tool-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--dark);
         }
@@ -411,8 +590,8 @@ def get_html_content():
         .tool-desc {
             color: #6b7280;
             line-height: 1.5;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
         }
         
         .tool-footer {
@@ -426,11 +605,11 @@ def get_html_content():
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         
         .status-on {
-            color: var(--secondary);
+            color: #10b981;
         }
         
         .status-off {
@@ -442,43 +621,108 @@ def get_html_content():
             font-size: 0.85rem;
         }
         
-        /* 仪表板样式 */
-        .dashboard-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+        /* 收藏网站卡片样式 */
+        .site-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border);
+            cursor: pointer;
         }
         
-        .stat-card {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
+        .site-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 47, 167, 0.1);
+        }
+        
+        .site-header {
             display: flex;
             align-items: center;
             gap: 15px;
-            box-shadow: var(--card-shadow);
+            margin-bottom: 12px;
         }
         
-        .stat-icon {
+        .site-icon {
             width: 50px;
             height: 50px;
-            border-radius: 8px;
+            border-radius: 10px;
+            background: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
+            color: white;
         }
         
-        .stat-info h3 {
-            font-size: 1.8rem;
-            font-weight: 700;
+        .site-info h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
             color: var(--dark);
+            margin-bottom: 5px;
         }
         
-        .stat-info p {
-            color: var(--gray);
+        .site-info p {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        
+        .site-category {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(0, 47, 167, 0.1);
+            color: var(--primary);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 5px;
+        }
+        
+        /* 系统信息样式 */
+        .system-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .info-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .info-card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(0, 47, 167, 0.1);
+            font-size: 1.1rem;
+        }
+        
+        .info-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 47, 167, 0.05);
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin-bottom: 3px;
             font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: var(--text);
+            font-size: 0.9rem;
+            line-height: 1.4;
         }
         
         /* 页面切换效果 */
@@ -492,8 +736,8 @@ def get_html_content():
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         /* 响应式设计 */
@@ -507,7 +751,7 @@ def get_html_content():
             }
             
             .logo-container {
-                padding: 20px 10px;
+                padding: 15px 10px;
             }
             
             .logo {
@@ -515,7 +759,7 @@ def get_html_content():
             }
             
             .footer-info {
-                font-size: 0.7rem;
+                font-size: 0.65rem;
                 padding: 10px;
             }
             
@@ -537,7 +781,7 @@ def get_html_content():
                 grid-template-columns: 1fr;
             }
             
-            .dashboard-stats {
+            .system-info-grid {
                 grid-template-columns: 1fr;
             }
             
@@ -558,38 +802,29 @@ def get_html_content():
         }
         
         ::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
+            background: var(--primary-light);
             border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+            background: var(--primary);
         }
         
         /* 通知样式 */
         .notification {
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
             padding: 12px 20px;
-            border-radius: 6px;
+            border-radius: 8px;
+            background: var(--primary);
             color: white;
-            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 47, 167, 0.2);
             z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             animation: slideIn 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .notification.success {
-            background-color: #10b981;
-        }
-        
-        .notification.error {
-            background-color: #ef4444;
-        }
-        
-        .notification.info {
-            background-color: #3b82f6;
         }
         
         @keyframes slideIn {
@@ -601,25 +836,30 @@ def get_html_content():
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
-        
-        /* 加载动画 */
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body>
+    <!-- 自定义标题栏 -->
+    <div class="title-bar">
+        <div class="title-bar-left">
+            <div class="app-logo">
+                <i class="fas fa-toolbox"></i>
+                <span class="logo-text">R-tools Box</span>
+            </div>
+        </div>
+        <div class="window-controls">
+            <button class="window-btn" onclick="minimizeWindow()">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="window-btn" onclick="maximizeWindow()">
+                <i class="far fa-window-maximize"></i>
+            </button>
+            <button class="window-btn close" onclick="closeWindow()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
     <div class="app-container">
         <!-- 侧边栏 -->
         <div class="sidebar">
@@ -634,37 +874,22 @@ def get_html_content():
             <div class="nav-menu">
                 <a href="#" class="nav-item active" onclick="switchPage('dashboard')">
                     <i class="fas fa-home"></i>
-                    <span>仪表板</span>
+                    <span>主页</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="switchPage('system')">
+                    <i class="fas fa-desktop"></i>
+                    <span>系统信息</span>
                 </a>
                 
                 <a href="#" class="nav-item" onclick="switchPage('tools')">
                     <i class="fas fa-tools"></i>
                     <span>所有工具</span>
-                    <span class="badge" id="tools-count">12</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="switchPage('system')">
-                    <i class="fas fa-desktop"></i>
-                    <span>系统工具</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="switchPage('security')">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>安全工具</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="switchPage('network')">
-                    <i class="fas fa-network-wired"></i>
-                    <span>网络工具</span>
-                </a>
-                
-                <a href="#" class="nav-item" onclick="switchPage('utilities')">
-                    <i class="fas fa-cogs"></i>
-                    <span>实用工具</span>
+                    <span class="badge" id="tools-count">0</span>
                 </a>
                 
                 <a href="#" class="nav-item" onclick="switchPage('settings')">
-                    <i class="fas fa-sliders-h"></i>
+                    <i class="fas fa-cog"></i>
                     <span>设置</span>
                 </a>
                 
@@ -683,7 +908,7 @@ def get_html_content():
         <!-- 主内容区 -->
         <div class="main-content">
             <div class="top-bar">
-                <div class="page-title" id="page-title">仪表板</div>
+                <div class="page-title" id="page-title">主页</div>
                 
                 <div class="actions">
                     <div class="search-box">
@@ -704,236 +929,145 @@ def get_html_content():
             </div>
             
             <div class="content-area">
-                <!-- 仪表板页面 -->
+                <!-- 主页 -->
                 <div id="dashboard" class="page active">
-                    <h2>欢迎使用 Windows R-tools Box</h2>
-                    <p class="tool-desc">一个为Windows用户打造的高效、纯净、可扩展的开源工具箱。</p>
-                    
-                    <div class="dashboard-stats">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
-                                <i class="fas fa-tools" style="color: white;"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 id="total-tools">12</h3>
-                                <p>可用工具</p>
-                            </div>
+                    <!-- 搜索区域 -->
+                    <div class="search-section">
+                        <h3 style="color: var(--primary); margin-bottom: 15px;">快速搜索</h3>
+                        <div class="search-engine-selector" id="engine-selector">
+                            <!-- 搜索引擎按钮将通过JS动态生成 -->
                         </div>
-                        
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #047857);">
-                                <i class="fas fa-check-circle" style="color: white;"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 id="active-tools">8</h3>
-                                <p>运行中</p>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-                                <i class="fas fa-star" style="color: white;"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 id="favorite-tools">5</h3>
-                                <p>收藏工具</p>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                                <i class="fas fa-clock" style="color: white;"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 id="last-update">今日</h3>
-                                <p>最近更新</p>
-                            </div>
+                        <div class="search-container">
+                            <input type="text" class="search-input-large" id="main-search-input" 
+                                   placeholder="输入要搜索的内容，按回车键搜索..." 
+                                   onkeypress="if(event.keyCode==13) performMainSearch()">
+                            <button class="search-btn-large" onclick="performMainSearch()">
+                                <i class="fas fa-search"></i>
+                            </button>
                         </div>
                     </div>
                     
-                    <h3 style="margin-top: 30px;">快速开始</h3>
-                    <div class="tools-grid" id="quick-tools">
-                        <!-- 快速访问工具将通过JS动态加载 -->
+                    <!-- 收藏网站 -->
+                    <h3 style="color: var(--primary); margin: 20px 0 15px;">
+                        <i class="fas fa-star" style="margin-right: 10px;"></i>
+                        收藏网站
+                    </h3>
+                    <div class="tools-grid" id="favorite-sites">
+                        <!-- 收藏网站将通过JS动态生成 -->
+                    </div>
+                    
+                    <!-- 收藏工具 -->
+                    <h3 style="color: var(--primary); margin: 30px 0 15px;">
+                        <i class="fas fa-tools" style="margin-right: 10px;"></i>
+                        收藏工具
+                    </h3>
+                    <div class="tools-grid" id="favorite-tools">
+                        <!-- 收藏工具将通过JS动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 系统信息页面 -->
+                <div id="system" class="page">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">系统信息</h2>
+                    <p style="color: var(--text-light); margin-bottom: 25px;">详细的系统硬件和软件信息</p>
+                    
+                    <div class="system-info-grid" id="system-info-grid">
+                        <!-- 系统信息将通过JS动态生成 -->
                     </div>
                 </div>
                 
                 <!-- 所有工具页面 -->
                 <div id="tools" class="page">
-                    <h2>所有工具</h2>
-                    <p class="tool-desc">工具箱中的所有可用工具，支持搜索和分类筛选。</p>
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">所有工具</h2>
+                    <p style="color: var(--text-light); margin-bottom: 25px;">工具箱中的所有可用工具</p>
                     
                     <div class="tools-grid" id="all-tools">
-                        <!-- 所有工具将通过JS动态加载 -->
+                        <!-- 所有工具将通过JS动态生成 -->
                     </div>
                 </div>
                 
-                <!-- 系统工具页面 -->
-                <div id="system" class="page">
-                    <h2>系统工具</h2>
-                    <p class="tool-desc">优化、管理和维护Windows系统的工具集合。</p>
+                <!-- 设置页面 -->
+                <div id="settings" class="page">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">设置</h2>
+                    <p style="color: var(--text-light); margin-bottom: 25px;">自定义工具箱的行为和外观</p>
                     
-                    <div class="tools-grid" id="system-tools">
-                        <!-- 系统工具将通过JS动态加载 -->
+                    <div class="info-card" style="max-width: 700px;">
+                        <h3>常规设置</h3>
+                        
+                        <div class="info-item">
+                            <div class="info-label">默认搜索引擎</div>
+                            <select id="default-engine" class="search-input-large" style="width: 100%; margin-top: 5px; padding: 10px;">
+                                <!-- 搜索引擎选项将通过JS动态生成 -->
+                            </select>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">启动时检查更新</div>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <input type="checkbox" id="check-updates">
+                                <span>自动检查新版本</span>
+                            </label>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">显示收藏网站</div>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <input type="checkbox" id="show-sites">
+                                <span>在主页显示收藏网站</span>
+                            </label>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">显示收藏工具</div>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <input type="checkbox" id="show-tools">
+                                <span>在主页显示收藏工具</span>
+                            </label>
+                        </div>
+                        
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="saveSettings()">
+                            <i class="fas fa-save"></i> 保存设置
+                        </button>
                     </div>
                 </div>
                 
                 <!-- 关于页面 -->
                 <div id="about" class="page">
-                    <h2>关于 Windows R-tools Box</h2>
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">关于 Windows R-tools Box</h2>
                     
-                    <div class="tool-card" style="max-width: 800px; margin-top: 20px;">
-                        <div class="tool-header">
-                            <div class="tool-icon icon-system">
-                                <i class="fas fa-toolbox"></i>
+                    <div class="info-card" style="max-width: 800px;">
+                        <h3>开源工具箱</h3>
+                        <div class="info-item">
+                            <div class="info-label">版本</div>
+                            <div class="info-value">1.0.0</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">作者</div>
+                            <div class="info-value">Regulus-forteen & Windows R-tools box 贡献者</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">许可证</div>
+                            <div class="info-value">GNU Affero 通用公共许可证 v3.0 (AGPL v3)</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">描述</div>
+                            <div class="info-value">
+                                <p>一个为Windows用户打造的高效、纯净、可扩展的开源工具箱。</p>
+                                <p>旨在聚合实用的系统工具，让<strong>新手用户开箱即用，高级用户自由定制</strong>。</p>
                             </div>
-                            <div>
-                                <div class="tool-title">开源工具箱</div>
-                                <div class="tool-status">
-                                    <i class="fas fa-circle status-on"></i>
-                                    <span>版本 1.0.0</span>
-                                </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">特色</div>
+                            <div class="info-value">
+                                <p>🛡️ <strong>纯净透明</strong>：所有代码开源，无任何捆绑、后台或隐私收集。</p>
+                                <p>🔧 <strong>即开即用</strong>：无需复杂配置，下载即可获得强大的工具集合。</p>
+                                <p>🧩 <strong>模块化设计</strong>：每个工具独立，支持自由组合与扩展。</p>
+                                <p>⚙️ <strong>尊重自由</strong>：不仅提供工具，更赋予您查看、修改和重新分发的权利。</p>
                             </div>
                         </div>
-                        
-                        <div class="tool-desc">
-                            <p><strong>Windows R-tools Box</strong> 是一个为Windows用户打造的高效、纯净、可扩展的开源工具箱。</p>
-                            <p>旨在聚合实用的系统工具，让<strong>新手用户开箱即用，高级用户自由定制</strong>。</p>
-                            
-                            <h4 style="margin-top: 20px;">为什么选择我们？</h4>
-                            <ul style="margin-left: 20px; margin-top: 10px;">
-                                <li>🛡️ <strong>纯净透明</strong>：所有代码开源，无任何捆绑、后台或隐私收集。</li>
-                                <li>🔧 <strong>即开即用</strong>：无需复杂配置，下载即可获得强大的工具集合。</li>
-                                <li>🧩 <strong>模块化设计</strong>：每个工具独立，支持自由组合与扩展。</li>
-                                <li>⚙️ <strong>尊重自由</strong>：不仅提供工具，更赋予您查看、修改和重新分发的权利。</li>
-                            </ul>
-                            
-                            <h4 style="margin-top: 20px;">许可证</h4>
-                            <p>本仓库内的所有原创工具、代码及修改，均采用 <strong>GNU Affero 通用公共许可证 v3.0</strong> 开源。</p>
-                            <p>我们采用此许可证，是为了坚守一个简单的信念：<strong>开源的价值在于共享与回馈</strong>。</p>
-                            
-                            <h4 style="margin-top: 20px;">贡献</h4>
-                            <p>我们热烈欢迎您的贡献！无论是添加新工具、修复BUG还是改进文档。</p>
-                            <p>请参考项目仓库中的 <strong>CONTRIBUTING.md</strong> 文件了解如何参与贡献。</p>
-                            
-                            <p style="margin-top: 30px; text-align: center; font-style: italic;">
-                                <strong>让开源的工具，赋予Windows更多可能。</strong> ✨
-                            </p>
-                        </div>
-                        
-                        <div class="tool-footer">
-                            <div class="tool-status">
-                                <i class="fas fa-code-branch"></i>
-                                <span>GitHub: Regulus-forteen/Windows-R-tools-box</span>
-                            </div>
-                            <button class="btn btn-primary" onclick="openRepository()">
-                                <i class="fab fa-github"></i>
-                                访问仓库
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 其他页面内容 -->
-                <div id="security" class="page">
-                    <h2>安全工具</h2>
-                    <p class="tool-desc">保护系统安全和隐私的工具集合。</p>
-                    <div class="tools-grid" id="security-tools"></div>
-                </div>
-                
-                <div id="network" class="page">
-                    <h2>网络工具</h2>
-                    <p class="tool-desc">网络诊断、优化和监控工具。</p>
-                    <div class="tools-grid" id="network-tools"></div>
-                </div>
-                
-                <div id="utilities" class="page">
-                    <h2>实用工具</h2>
-                    <p class="tool-desc">日常使用的小工具和实用程序。</p>
-                    <div class="tools-grid" id="utilities-tools"></div>
-                </div>
-                
-                <div id="settings" class="page">
-                    <h2>设置</h2>
-                    <p class="tool-desc">自定义工具箱的行为和外观。</p>
-                    
-                    <div class="tool-card" style="max-width: 700px;">
-                        <h3 style="margin-bottom: 15px;">常规设置</h3>
-                        
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">启动时检查更新</label>
-                            <label class="tool-status">
-                                <input type="checkbox" id="check-updates" checked onchange="toggleSetting('check-updates')">
-                                <span style="margin-left: 8px;">自动检查新版本</span>
-                            </label>
-                        </div>
-                        
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">工具箱主题</label>
-                            <select id="theme-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); width: 200px;" onchange="changeTheme()">
-                                <option value="light">浅色主题</option>
-                                <option value="dark">深色主题</option>
-                                <option value="auto">跟随系统</option>
-                            </select>
-                        </div>
-                        
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">工具默认行为</label>
-                            <label class="tool-status">
-                                <input type="checkbox" id="auto-start" onchange="toggleSetting('auto-start')">
-                                <span style="margin-left: 8px;">启动时自动运行收藏的工具</span>
-                            </label>
-                        </div>
-                        
-                        <div style="margin-top: 30px;">
-                            <button class="btn btn-primary" onclick="saveSettings()">
-                                <i class="fas fa-save"></i>
-                                保存设置
-                            </button>
-                            <button class="btn btn-secondary" style="margin-left: 10px;" onclick="resetSettings()">
-                                <i class="fas fa-undo"></i>
-                                恢复默认
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 许可证页面 -->
-                <div id="license" class="page">
-                    <h2>AGPL v3 许可证</h2>
-                    
-                    <div class="tool-card" style="max-width: 900px;">
-                        <h3>GNU Affero 通用公共许可证 v3.0</h3>
-                        
-                        <div class="tool-desc">
-                            <p><strong>本仓库内的所有原创工具、代码及修改，均采用 GNU Affero 通用公共许可证 v3.0 开源。</strong></p>
-                            
-                            <h4 style="margin-top: 20px;">许可证对我们的意义</h4>
-                            <p>我们采用此许可证，是为了坚守一个简单的信念：<strong>开源的价值在于共享与回馈</strong>。</p>
-                            
-                            <h4 style="margin-top: 20px;">对您意味着</h4>
-                            <ul style="margin-left: 20px; margin-top: 10px;">
-                                <li>✅ <strong>自由使用</strong>：个人、商业、教育用途均可。</li>
-                                <li>✅ <strong>自由研究</strong>：可随意查看、学习所有实现。</li>
-                                <li>✅ <strong>自由修改</strong>：可根据需求自行定制工具。</li>
-                                <li>✅ <strong>自由分发</strong>：可以分享给任何人。</li>
-                                <li>⚠️ <strong>唯一条件</strong>：若您<strong>修改</strong>了代码并<strong>通过网络提供服务</strong>，则<strong>必须</strong>将修改后的完整源代码向您的用户开放。</li>
-                            </ul>
-                            
-                            <p style="margin-top: 20px; font-style: italic;">
-                                <strong>简单来说</strong>：我们欢迎任何人（包括商业公司）使用本项目，但如果您用它构建了在线服务并进行了修改，那么您有义务将这些改进开源。<strong>这确保了开发者和社区的贡献不会被私有化垄断。</strong>
-                            </p>
-                            
-                            <p style="margin-top: 30px;">
-                                <strong>完整许可证文本请查看 LICENSE 文件。</strong> 使用本项目即表示您同意遵守此许可证的条款。
-                            </p>
-                        </div>
-                        
-                        <div class="tool-footer">
-                            <button class="btn btn-secondary" onclick="switchPage('about')">
-                                <i class="fas fa-arrow-left"></i>
-                                返回关于
-                            </button>
-                        </div>
+                        <button class="btn btn-secondary" onclick="window.pywebview.api.open_repository ? window.pywebview.api.open_repository() : alert('GitHub仓库功能未实现')">
+                            <i class="fab fa-github"></i> 访问GitHub仓库
+                        </button>
                     </div>
                 </div>
             </div>
@@ -941,7 +1075,8 @@ def get_html_content():
     </div>
 
     <script>
-        // 工具数据
+        // 全局变量
+        let currentSearchEngine = '百度';
         let toolsData = [];
         
         // 页面切换函数
@@ -954,15 +1089,11 @@ def get_html_content():
             
             // 更新页面标题
             const pageTitles = {
-                'dashboard': '仪表板',
+                'dashboard': '主页',
+                'system': '系统信息',
                 'tools': '所有工具',
-                'system': '系统工具',
-                'security': '安全工具',
-                'network': '网络工具',
-                'utilities': '实用工具',
                 'settings': '设置',
-                'about': '关于',
-                'license': '许可证'
+                'about': '关于'
             };
             document.getElementById('page-title').textContent = pageTitles[pageId] || 'R-tools Box';
             
@@ -973,121 +1104,241 @@ def get_html_content():
             document.getElementById(pageId).classList.add('active');
             
             // 如果切换到工具页面，加载工具
-            if (['tools', 'system', 'security', 'network', 'utilities', 'dashboard'].includes(pageId)) {
+            if (['tools', 'dashboard'].includes(pageId)) {
                 loadToolsForPage(pageId);
+            } else if (pageId === 'system') {
+                loadSystemInfo();
+            } else if (pageId === 'dashboard') {
+                loadHomePage();
             }
             
             return false;
         }
         
-        // 加载工具到页面
-        function loadToolsForPage(pageId) {
-            let containerId, filteredTools;
+        // 加载主页
+        async function loadHomePage() {
+            // 加载搜索引擎
+            await loadSearchEngines();
             
-            switch(pageId) {
-                case 'tools':
-                    containerId = 'all-tools';
-                    filteredTools = toolsData;
-                    break;
-                case 'system':
-                    containerId = 'system-tools';
-                    filteredTools = toolsData.filter(tool => tool.category === 'system');
-                    break;
-                case 'security':
-                    containerId = 'security-tools';
-                    filteredTools = toolsData.filter(tool => tool.category === 'security');
-                    break;
-                case 'network':
-                    containerId = 'network-tools';
-                    filteredTools = toolsData.filter(tool => tool.category === 'network');
-                    break;
-                case 'utilities':
-                    containerId = 'utilities-tools';
-                    filteredTools = toolsData.filter(tool => tool.category === 'utilities');
-                    break;
-                case 'dashboard':
-                    containerId = 'quick-tools';
-                    filteredTools = toolsData.filter(tool => tool.favorite).slice(0, 4);
-                    break;
-            }
+            // 加载收藏网站
+            await loadFavoriteSites();
             
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            if (filteredTools.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 40px;">暂无工具</p>';
-                return;
-            }
-            
-            filteredTools.forEach(tool => {
-                const toolCard = document.createElement('div');
-                toolCard.className = 'tool-card';
-                toolCard.innerHTML = `
-                    <div class="tool-header">
-                        <div class="tool-icon icon-${tool.category}">
-                            <i class="${tool.icon}"></i>
-                        </div>
-                        <div>
-                            <div class="tool-title">${tool.name}</div>
-                            <div class="tool-status">
-                                <i class="fas fa-circle status-${tool.status}"></i>
-                                <span>${tool.status === 'on' ? '可用' : '维护中'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="tool-desc">${tool.desc}</div>
-                    <div class="tool-footer">
-                        <div class="tool-status">
-                            <i class="fas fa-heart" style="color: ${tool.favorite ? '#ef4444' : '#9ca3af'}; cursor: pointer;" 
-                               onclick="toggleFavorite(${tool.id})" title="${tool.favorite ? '取消收藏' : '收藏'}"></i>
-                            <span style="margin-left: 5px;">${tool.category === 'system' ? '系统' : 
-                                                           tool.category === 'security' ? '安全' : 
-                                                           tool.category === 'network' ? '网络' : '实用'}</span>
-                        </div>
-                        <button class="btn ${tool.status === 'on' ? 'btn-primary' : 'btn-secondary'}" 
-                                onclick="launchTool(${tool.id})" ${tool.status === 'off' ? 'disabled' : ''}>
-                            <i class="fas fa-play"></i>
-                            ${tool.status === 'on' ? '启动' : '暂不可用'}
-                        </button>
-                    </div>
-                `;
-                container.appendChild(toolCard);
-            });
-            
-            // 更新统计信息
-            if (pageId === 'dashboard') {
-                updateStats();
+            // 加载收藏工具
+            await loadFavoriteTools();
+        }
+        
+        // 加载搜索引擎
+        async function loadSearchEngines() {
+            try {
+                const response = await window.pywebview.api.get_search_engines();
+                if (response.success) {
+                    const selector = document.getElementById('engine-selector');
+                    selector.innerHTML = '';
+                    
+                    for (const [name, engine] of Object.entries(response.engines)) {
+                        const btn = document.createElement('button');
+                        btn.className = `engine-btn ${name === response.default ? 'active' : ''}`;
+                        btn.innerHTML = `<i class="${engine.icon}"></i> ${name}`;
+                        btn.onclick = () => selectSearchEngine(name, btn);
+                        selector.appendChild(btn);
+                        
+                        if (name === response.default) {
+                            currentSearchEngine = name;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('加载搜索引擎失败:', error);
             }
         }
         
-        // 更新统计信息
-        function updateStats() {
-            document.getElementById('total-tools').textContent = toolsData.length;
-            document.getElementById('active-tools').textContent = toolsData.filter(t => t.status === 'on').length;
-            document.getElementById('favorite-tools').textContent = toolsData.filter(t => t.favorite).length;
-            document.getElementById('tools-count').textContent = toolsData.length;
+        // 选择搜索引擎
+        function selectSearchEngine(engine, button) {
+            currentSearchEngine = engine;
+            document.querySelectorAll('.engine-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+        }
+        
+        // 执行主搜索
+        async function performMainSearch() {
+            const query = document.getElementById('main-search-input').value.trim();
+            if (!query) return;
+            
+            try {
+                const response = await window.pywebview.api.search(query, currentSearchEngine);
+                showNotification(response.message, response.success ? 'info' : 'error');
+            } catch (error) {
+                showNotification('搜索失败', 'error');
+            }
+        }
+        
+        // 加载收藏网站
+        async function loadFavoriteSites() {
+            try {
+                const response = await window.pywebview.api.get_favorite_sites();
+                if (response.success) {
+                    const container = document.getElementById('favorite-sites');
+                    container.innerHTML = '';
+                    
+                    response.sites.forEach(site => {
+                        const card = document.createElement('div');
+                        card.className = 'site-card';
+                        card.onclick = () => openSite(site.url);
+                        card.innerHTML = `
+                            <div class="site-header">
+                                <div class="site-icon">
+                                    <i class="${site.icon}"></i>
+                                </div>
+                                <div class="site-info">
+                                    <h3>${site.name}</h3>
+                                    <p>${site.url}</p>
+                                    <span class="site-category">${site.category}</span>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('加载收藏网站失败:', error);
+            }
+        }
+        
+        // 加载收藏工具
+        async function loadFavoriteTools() {
+            try {
+                const response = await window.pywebview.api.get_tools();
+                if (response.success) {
+                    toolsData = response.tools;
+                    const container = document.getElementById('favorite-tools');
+                    container.innerHTML = '';
+                    
+                    const favorites = response.favorites;
+                    if (favorites.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #999; grid-column: 1 / -1;">暂无收藏的工具</p>';
+                        return;
+                    }
+                    
+                    favorites.forEach(tool => {
+                        const card = createToolCard(tool);
+                        container.appendChild(card);
+                    });
+                    
+                    // 更新工具数量
+                    document.getElementById('tools-count').textContent = toolsData.length;
+                }
+            } catch (error) {
+                console.error('加载收藏工具失败:', error);
+            }
+        }
+        
+        // 加载所有工具
+        async function loadAllTools() {
+            try {
+                const response = await window.pywebview.api.get_tools();
+                if (response.success) {
+                    toolsData = response.tools;
+                    const container = document.getElementById('all-tools');
+                    container.innerHTML = '';
+                    
+                    toolsData.forEach(tool => {
+                        const card = createToolCard(tool);
+                        container.appendChild(card);
+                    });
+                    
+                    // 更新工具数量
+                    document.getElementById('tools-count').textContent = toolsData.length;
+                }
+            } catch (error) {
+                console.error('加载工具失败:', error);
+            }
+        }
+        
+        // 加载系统信息
+        async function loadSystemInfo() {
+            try {
+                const response = await window.pywebview.api.get_system_info();
+                if (response.success) {
+                    const container = document.getElementById('system-info-grid');
+                    container.innerHTML = '';
+                    
+                    response.info.forEach(([title, info]) => {
+                        const card = document.createElement('div');
+                        card.className = 'info-card';
+                        
+                        let content = '';
+                        if (typeof info === 'object') {
+                            for (const [key, value] of Object.entries(info)) {
+                                content += `
+                                    <div class="info-item">
+                                        <div class="info-label">${key}</div>
+                                        <div class="info-value">${value}</div>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            content = `
+                                <div class="info-item">
+                                    <div class="info-value">${info}</div>
+                                </div>
+                            `;
+                        }
+                        
+                        card.innerHTML = `
+                            <h3>${title}</h3>
+                            ${content}
+                        `;
+                        container.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('加载系统信息失败:', error);
+            }
+        }
+        
+        // 创建工具卡片
+        function createToolCard(tool) {
+            const card = document.createElement('div');
+            card.className = 'tool-card';
+            card.innerHTML = `
+                <div class="tool-header">
+                    <div class="tool-icon icon-${tool.category}">
+                        <i class="${tool.icon || 'fas fa-tools'}"></i>
+                    </div>
+                    <div>
+                        <div class="tool-title">${tool.name}</div>
+                        <div class="tool-status">
+                            <i class="fas fa-circle status-${tool.status}"></i>
+                            <span>${tool.status === 'on' ? '可用' : '维护中'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tool-desc">${tool.description || '暂无描述'}</div>
+                <div class="tool-footer">
+                    <div class="tool-status">
+                        <i class="fas fa-heart" style="color: ${tool.favorite ? '#ef4444' : '#9ca3af'}; cursor: pointer;" 
+                           onclick="toggleFavorite('${tool.id}')" title="${tool.favorite ? '取消收藏' : '收藏'}"></i>
+                        <span style="margin-left: 5px;">${tool.category === 'system' ? '系统' : 
+                                                       tool.category === 'security' ? '安全' : 
+                                                       tool.category === 'network' ? '网络' : '实用'}</span>
+                    </div>
+                    <button class="btn ${tool.status === 'on' ? 'btn-primary' : 'btn-secondary'}" 
+                            onclick="launchTool('${tool.id}')" ${tool.status === 'off' ? 'disabled' : ''}>
+                        <i class="fas fa-play"></i>
+                        ${tool.status === 'on' ? '启动' : '暂不可用'}
+                    </button>
+                </div>
+            `;
+            
+            return card;
         }
         
         // 搜索工具
         function searchTools() {
             const searchTerm = document.getElementById('search-tools').value.toLowerCase();
-            
-            // 在活动页面中搜索
-            const activePage = document.querySelector('.page.active').id;
-            let containerId;
-            
-            switch(activePage) {
-                case 'tools': containerId = 'all-tools'; break;
-                case 'system': containerId = 'system-tools'; break;
-                case 'security': containerId = 'security-tools'; break;
-                case 'network': containerId = 'network-tools'; break;
-                case 'utilities': containerId = 'utilities-tools'; break;
-                default: return;
-            }
-            
-            const container = document.getElementById(containerId);
+            const container = document.getElementById('all-tools');
             if (!container) return;
             
             const toolCards = container.querySelectorAll('.tool-card');
@@ -1105,86 +1356,79 @@ def get_html_content():
         }
         
         // 启动工具
-        function launchTool(toolId) {
-            window.pywebview.api.launch_tool(toolId).then(response => {
-                if (response.success) {
-                    showNotification(response.message || `工具启动成功`, 'success');
-                } else {
-                    showNotification(response.message || `启动失败`, 'error');
-                }
-            }).catch(error => {
-                showNotification(`启动失败: ${error}`, 'error');
-            });
+        async function launchTool(toolId) {
+            try {
+                const response = await window.pywebview.api.launch_tool(toolId);
+                showNotification(response.message, response.success ? 'info' : 'error');
+            } catch (error) {
+                showNotification('启动失败', 'error');
+            }
         }
         
         // 切换收藏状态
-        function toggleFavorite(toolId) {
+        async function toggleFavorite(toolId) {
             const tool = toolsData.find(t => t.id === toolId);
             if (tool) {
                 const newFavorite = !tool.favorite;
-                window.pywebview.api.toggle_favorite(toolId, newFavorite).then(response => {
+                try {
+                    const response = await window.pywebview.api.toggle_favorite(toolId, newFavorite);
                     if (response.success) {
                         tool.favorite = newFavorite;
                         
-                        // 重新加载当前页面的工具
-                        const activePage = document.querySelector('.page.active').id;
-                        if (activePage && activePage !== 'settings' && activePage !== 'about' && activePage !== 'license') {
-                            loadToolsForPage(activePage);
-                        }
+                        // 重新加载收藏工具
+                        await loadFavoriteTools();
+                        await loadAllTools();
                         
-                        updateStats();
-                        showNotification(response.message || `已${newFavorite ? '收藏' : '取消收藏'}`, 'info');
+                        showNotification(response.message, 'info');
                     }
-                });
+                } catch (error) {
+                    showNotification('操作失败', 'error');
+                }
+            }
+        }
+        
+        // 打开网站
+        async function openSite(url) {
+            try {
+                const response = await window.pywebview.api.open_site(url);
+                if (!response.success) {
+                    showNotification('打开失败', 'error');
+                }
+            } catch (error) {
+                showNotification('打开失败', 'error');
             }
         }
         
         // 刷新工具
-        function refreshTools() {
+        async function refreshTools() {
             showNotification('正在刷新工具列表...', 'info');
             
-            window.pywebview.api.get_tools().then(response => {
+            try {
+                const response = await window.pywebview.api.get_tools();
                 if (response.success) {
                     toolsData = response.tools;
-                    updateStats();
                     
                     const activePage = document.querySelector('.page.active').id;
-                    if (activePage && activePage !== 'settings' && activePage !== 'about' && activePage !== 'license') {
-                        loadToolsForPage(activePage);
+                    if (activePage === 'tools') {
+                        await loadAllTools();
+                    } else if (activePage === 'dashboard') {
+                        await loadFavoriteTools();
                     }
                     
                     showNotification('工具列表已刷新', 'success');
                 }
-            }).catch(error => {
+            } catch (error) {
                 showNotification('刷新失败', 'error');
-            });
+            }
         }
         
         // 检查更新
-        function checkForUpdates() {
+        async function checkForUpdates() {
             showNotification('正在检查更新...', 'info');
-            
-            window.pywebview.api.check_updates().then(response => {
-                if (response.has_update) {
-                    showNotification(`发现新版本: ${response.latest_version}`, 'info');
-                    if (confirm(`发现新版本 ${response.latest_version}，是否前往下载？`)) {
-                        window.pywebview.api.open_repository();
-                    }
-                } else {
-                    showNotification(response.message || '当前已是最新版本', 'info');
-                }
-            }).catch(error => {
-                showNotification('检查更新失败', 'error');
-            });
-        }
-        
-        // 打开仓库
-        function openRepository() {
-            window.pywebview.api.open_repository().then(response => {
-                if (!response.success) {
-                    showNotification(response.message || '无法打开仓库', 'error');
-                }
-            });
+            // 这里可以调用API检查更新
+            setTimeout(() => {
+                showNotification('当前已是最新版本 (v1.0.0)', 'info');
+            }, 1000);
         }
         
         // 显示通知
@@ -1196,81 +1440,107 @@ def get_html_content():
                 setTimeout(() => existing.remove(), 300);
             }
             
-            // 创建通知元素
+            // 创建新通知
             const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
+            notification.className = `notification`;
+            notification.style.backgroundColor = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#002FA7';
+            
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
             document.body.appendChild(notification);
             
-            // 3秒后移除通知
+            // 3秒后自动移除
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
             }, 3000);
         }
         
-        // 设置相关函数
-        function toggleSetting(settingId) {
-            const value = document.getElementById(settingId).checked;
-            window.pywebview.api.update_setting(settingId, value);
-        }
-        
-        function changeTheme() {
-            const theme = document.getElementById('theme-select').value;
-            window.pywebview.api.update_setting('theme', theme);
-        }
-        
-        function saveSettings() {
-            window.pywebview.api.save_settings().then(response => {
+        // 加载设置
+        async function loadSettings() {
+            try {
+                const response = await window.pywebview.api.get_settings();
                 if (response.success) {
-                    showNotification('设置已保存', 'success');
+                    document.getElementById('check-updates').checked = response.settings.check_updates;
+                    document.getElementById('show-sites').checked = response.settings.show_favorites;
+                    document.getElementById('show-tools').checked = response.settings.show_tools;
+                    
+                    // 加载搜索引擎选项
+                    const engines = await window.pywebview.api.get_search_engines();
+                    const select = document.getElementById('default-engine');
+                    select.innerHTML = '';
+                    
+                    for (const [name, engine] of Object.entries(engines.engines)) {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        if (name === response.settings.default_search) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    }
                 }
-            });
+            } catch (error) {
+                console.error('加载设置失败:', error);
+            }
         }
         
-        function resetSettings() {
-            document.getElementById('check-updates').checked = true;
-            document.getElementById('theme-select').value = 'light';
-            document.getElementById('auto-start').checked = false;
-            showNotification('设置已恢复为默认值', 'info');
+        // 保存设置
+        async function saveSettings() {
+            const settings = {
+                default_search: document.getElementById('default-engine').value,
+                check_updates: document.getElementById('check-updates').checked,
+                show_favorites: document.getElementById('show-sites').checked,
+                show_tools: document.getElementById('show-tools').checked
+            };
+            
+            try {
+                const response = await window.pywebview.api.save_settings(settings);
+                showNotification(response.message, response.success ? 'success' : 'error');
+                
+                // 更新当前搜索引擎
+                if (settings.default_search !== currentSearchEngine) {
+                    await loadSearchEngines();
+                }
+            } catch (error) {
+                showNotification('保存失败', 'error');
+            }
         }
         
-        // 初始化函数
-        function initApp() {
-            // 加载工具数据
-            window.pywebview.api.get_tools().then(response => {
-                if (response.success) {
-                    toolsData = response.tools;
-                    updateStats();
-                    loadToolsForPage('dashboard');
-                }
-            }).catch(error => {
-                console.error('加载工具失败:', error);
-                // 使用默认数据
-                toolsData = [
-                    {"id": 1, "name": "系统优化器", "desc": "清理临时文件、优化启动项和系统设置", "category": "system", "icon": "fas fa-rocket", "status": "on", "favorite": true},
-                    {"id": 2, "name": "隐私清理", "desc": "清除浏览器历史记录、Cookies和隐私数据", "category": "security", "icon": "fas fa-user-shield", "status": "on", "favorite": true},
-                    {"id": 3, "name": "网络诊断", "desc": "检测网络连接问题，分析网络速度", "category": "network", "icon": "fas fa-wifi", "status": "on", "favorite": false},
-                    {"id": 4, "name": "文件批量重命名", "desc": "批量重命名文件，支持多种规则", "category": "utilities", "icon": "fas fa-file-signature", "status": "on", "favorite": true}
-                ];
-                updateStats();
-                loadToolsForPage('dashboard');
-            });
+        // 窗口控制函数
+        function minimizeWindow() {
+            window.pywebview.api.minimize();
+        }
+        
+        function maximizeWindow() {
+            window.pywebview.api.maximize();
+        }
+        
+        function closeWindow() {
+            window.pywebview.api.close();
         }
         
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            // 等待pywebview API加载完成
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 等待API就绪
             const checkApi = setInterval(() => {
                 if (window.pywebview && window.pywebview.api) {
                     clearInterval(checkApi);
-                    initApp();
+                    
+                    // 加载主页数据
+                    loadHomePage();
                 }
             }, 100);
+            
+            // 搜索框回车事件
+            document.getElementById('main-search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') performMainSearch();
+            });
         });
     </script>
 </body>
@@ -1282,9 +1552,10 @@ def main():
     
     # 打印启动信息
     print("=" * 60)
-    print("正在启动 Windows R-tools Box...")
-    print("版本 1.0.0 | © 2024 Regulus-forteen & 贡献者")
-    print("许可证: AGPL v3")
+    print(f"正在启动 Windows R-tools Box...")
+    print(f"版本: 1.0.0")
+    print(f"作者: Regulus-forteen")
+    print(f"许可证: AGPL v3")
     print("=" * 60)
     
     # 检查管理员权限
@@ -1306,37 +1577,42 @@ def main():
     print("-" * 60)
     print("🚀 正在加载主界面...")
     
-    # 创建窗口
-    window = webview.create_window(
-        'Windows R-tools Box 🧰',
-        html=get_html_content(),
-        width=1200,
-        height=800,
-        min_size=(800, 600),
-        resizable=True,
-        text_select=True,
-        easy_drag=True,
-        js_api=api  # 将API实例传递给窗口
-    )
-    
-    # 启动应用
     try:
+        # 创建窗口
+        window = webview.create_window(
+            "Windows R-tools Box 🧰",
+            html=HTML_CONTENT,
+            width=1200,
+            height=800,
+            min_size=(800, 600),
+            resizable=True,
+            easy_drag=False,
+            js_api=api,
+            frameless=True  # 无边框窗口
+        )
+        
+        print("✅ 窗口创建成功")
+        
+        # 启动应用
         webview.start(debug=False)
         print("👋 程序已退出")
+        
     except KeyboardInterrupt:
         print("\n👋 程序已退出")
     except Exception as e:
         print(f"❌ 启动失败: {e}")
-        print("💡 请确保已正确安装依赖:")
-        print("   pip install pywebview")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == '__main__':
     # 检查依赖
     try:
         import webview
-    except ImportError:
-        print("❌ 未找到 pywebview 库")
-        print("💡 请安装依赖: pip install pywebview")
+        import psutil
+    except ImportError as e:
+        print(f"❌ 缺少依赖: {e}")
+        print("💡 请安装依赖:")
+        print("   pip install pywebview psutil")
         sys.exit(1)
     
     # 运行主函数

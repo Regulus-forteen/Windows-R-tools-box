@@ -1,0 +1,13 @@
+{
+  "id": "process_manager",
+  "name": "进程管理器",
+  "description": "查看和管理系统进程，结束异常进程",
+  "executable": "process_manager.exe",
+  "version": "1.2.0",
+  "author": "R-tools Team",
+  "icon": "fas fa-tasks",
+  "status": "on",
+  "favorite": false,
+  "category": "system",
+  "requires_admin": false
+}
