@@ -1,0 +1,173 @@
+/* =========================================================================
+   Windows R-tools box 全局UI规范样式 Global UI Style Guideline
+   可用于所有子工具和前端，不受具体目录、路径限制。
+   For any standalone tool, simply link this file for uniform appearance.
+   ========================================================================= */
+
+:root {
+    --primary: #002FA7;          /* 主色 Primary Blue */
+    --primary-dark: #001F6E;     /* 主色加深 Darker Blue */
+    --primary-light: #4A6FC1;    /* 主色变浅 Lighter Blue */
+    --secondary: #FF6B35;        /* 辅助色 Secondary (Accent) */
+    --success: #10b981;          /* 成功/启用色 Success/Enabled */
+    --danger: #ef4444;           /* 错误/警告色 Danger/Error */
+    --gray: #9ca3af;             /* 中性色 Neutral Gray */
+    --border: #e5e7eb;           /* 边框色 Border Color */
+    --background: #f8fafc;       /* 背景色 Background */
+    --surface: #fff;             /* 卡片/面板色 Card/Panel Surface */
+    --shadow: 0 4px 6px -1px rgba(0, 47, 167, 0.10), 0 2px 4px -1px rgba(0, 47, 167, 0.06); /* 统一阴影效果 Unified shadow */
+    --radius: 12px;              /* 圆角统一 Border radius */
+    --font-main: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif; /* 默认字体 Font stack */
+    --font-size: 16px;           /* 基础字号 Base font size */
+    --font-size-small: 14px;     /* 小字号 Small font size */
+    --font-size-large: 20px;     /* 大字号 Large font size */
+    --sidebar-width: 260px;      /* 侧边栏宽度 Sidebar width */
+    --transition: all 0.2s;      /* 动画过渡 Transition for smoothness */
+}
+
+body {
+    font-family: var(--font-main);  /* 全局字体 Global font */
+    font-size: var(--font-size);    /* 字号 Font size */
+    background: var(--background);  /* 全局背景 Global background */
+    color: #1f2937;                 /* 主要文字色 Main text color */
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+a:hover {
+    color: var(--primary-dark);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-main);
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+}
+h1 { font-size: 2.1rem;}
+h2 { font-size: 1.6rem;}
+h3 { font-size: 1.3rem;}
+h4 { font-size: 1.13rem;}
+
+.text-center { text-align: center; }      /* 居中 Centered text */
+.text-right { text-align: right; }        /* 靠右 Right aligned */
+.text-gray { color: var(--gray); }        /* 灰色文字 Gray text */
+.text-small { font-size: var(--font-size-small); } /* 小号 Small text */
+.text-large { font-size: var(--font-size-large); } /* 大号 Large text */
+.text-success { color: var(--success);}   /* 成功色 Success text */
+.text-danger { color: var(--danger);}     /* 错误色 Error text */
+
+.btn {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: var(--radius);
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    font-size: var(--font-size);
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+    transition: var(--transition);
+}
+.btn:hover, .btn:focus {
+    background: var(--primary-dark);
+}
+.btn-secondary {
+    background: #fff;
+    color: var(--primary);
+    border: 1px solid var(--border);
+}
+.btn-success {
+    background: var(--success);
+    color: #fff;
+}
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+}
+.card-title {
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 12px;
+    font-size: 1.1em;
+}
+
+.badge {
+    display: inline-block;
+    background: var(--secondary);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 10px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    font-weight: bold;
+    vertical-align: middle;
+}
+
+input[type="text"], input[type="search"], select, textarea {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-size: 1em;
+    background: #fafbfc;
+    margin-bottom: 12px;
+    transition: var(--transition);
+}
+input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.flex { display: flex; }                     /* 弹性盒 Flex */
+.flex-col { flex-direction: column; }        /* 垂直方向 Column */
+.flex-row { flex-direction: row; }           /* 水平方向 Row */
+.flex-center { justify-content: center; align-items: center; } /* 居中 Centered Flex */
+.space-between { justify-content: space-between;} /* 两端对齐 Space between */
+.gap-10 { gap: 10px; }     /* 元素间隔10px 10px gap */
+.gap-20 { gap: 20px; }     /* 元素间隔20px 20px gap */
+.rounded { border-radius: var(--radius);}  /* 统一圆角 Rounded corners */
+.shadow { box-shadow: var(--shadow);}      /* 阴影 Shadow */
+.border { border: 1px solid var(--border);}/* 通用边框 General border */
+.bg-primary { background: var(--primary); color: #fff;}  /* 主色背景 Primary bg */
+.bg-surface { background: var(--surface);} /* 面板背景 Surface bg */
+.bg-secondary { background: var(--secondary); color: #fff;} /* 辅助色背景 Secondary bg */
+.mt-20 { margin-top: 20px;}   /* 上间隔20px 20px margin-top */
+pb-10 { padding-bottom: 10px;} /* 下内间距10px 10px padding-bottom */
+
+.status-success { color: var(--success);}   /* 成功 Success */
+.status-danger { color: var(--danger);}     /* 警告 Danger */
+.status-info { color: var(--primary);}      /* 信息 Info */
+.status-warning { color: var(--secondary);} /* 警告 Warning */
+
+@media (max-width: 1024px) {
+    .sidebar { width: 70px;}        /* 1024px以下缩窄侧栏 Narrow sidebar under 1024px */
+    .hide-md { display: none !important;} /* 中等屏幕隐藏 Hide on medium screens */
+}
+@media (max-width: 768px) {
+    .sidebar { display: none;}      /* 768px以下隐藏侧栏 Hide sidebar under 768px */
+    .flex-col-md { flex-direction: column;} /* 转为竖排 Stack column on mobile */
+    .gap-10 { gap: 5px;}
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--primary-light); border-radius: 4px;}
+::-webkit-scrollbar-track { background: #f1f1f1; }
+
+/* == 你可以在此处追加更多通用样式，但请保持注释和命名规范（中英文对照）==
+   You may extend here with more global styles, always add bilingual annotation and naming.
+*/
